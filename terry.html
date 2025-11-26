@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Terry the Camel Deluxe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+Start+2P&family=Bungee+Inline&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #000;
+        --pink: #ff69b4;
+        --cyan: #00ffff;
+        --vomit: #00ff00;
+        --reload: #ff4500;
+        --ground: #654321;
+        --text: 'Press Start 2P', cursive;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        height: 100dvh;
+        background: var(--bg);
+        font-family: var(--text);
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #game {
+        width: min(90vw, 480px);
+        aspect-ratio: 9 / 16;
+        background: #111;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 0 50px rgba(255, 105, 180, 0.6);
+        position: relative;
+      }
+      canvas { display: block; width: 100%; height: 100%; }
+      .overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.97);
+        color: var(--cyan);
+        display: grid;
+        place-items: center;
+        text-align: center;
+        padding: 2rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .4s;
+      }
+      .overlay.active { opacity: 1; pointer-events: all; }
+      h1 {
+        font-family: 'Bungee Inline', cursive;
+        font-size: clamp(2rem, 8vw, 5rem);
+        color: var(--vomit);
+        text-shadow: 6px 6px 0 var(--pink);
+        margin: 0;
+      }
+      p { margin: 1rem 0; font-size: clamp(0.8rem, 2.5vw, 1.1rem); }
+      .btn {
+        background: var(--pink);
+        color: #000;
+        border: 5px solid var(--cyan);
+        padding: 1rem 2rem;
+        margin: .5rem;
+        font-family: var(--text);
+        font-size: clamp(.9rem, 3vw, 1.2rem);
+        text-transform: uppercase;
+        border-radius: 10px;
+        box-shadow: 0 6px 0 var(--reload);
+        transition: transform .1s, box-shadow .1s;
+      }
+      .btn:active {
+        transform: translateY(4px);
+        box-shadow: 0 2px 0 var(--reload);
+      }
+      #ui {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        padding: 1rem;
+        font-size: 1.1rem;
+        color: var(--pink);
+      }
+      #charges {
+        position: absolute;
+        right: 1rem;
+        top: 1rem;
+        color: var(--vomit);
+      }
+      #reload-bar {
+        position: absolute;
+        right: 1rem;
+        top: 3.5rem;
+        width: 160px;
+        height: 20px;
+        background: #333;
+        border: 3px solid #fff;
+        overflow: hidden;
+      }
+      #reload-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--reload), #ff8c00);
+        transition: width .05s linear;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game">
+      <canvas id="c"></canvas>
+
+      <div id="start" class="overlay active">
+        <div>
+          <h1>Terry's Gas Attack</h1>
+          <p>The Fart-Powered Double-Jump Runner</p>
+          <p>Tap top = Jump/Double<br>Tap bottom = Vomit Shot (2 max, 10s reload)</p>
+          <button class="btn" id="play">BEGIN DIGESTIVE RAGE</button>
+          <button class="btn" id="scoresBtn">HIGH SCORES</button>
+          <div id="scoreboard" style="margin-top:2rem;display:none;color:#ccc">
+            <h3 style="color:var(--pink)">CHRONICLES OF TURMOIL</h3>
+            <div id="list">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="over" class="overlay">
+        <div>
+          <h1>BOWEL FAILURE</h1>
+          <p>Score: <span id="final">0</span> | Best: <span id="best">0</span></p>
+          <button class="btn" id="again">REGURGITATE & PLAY</button>
+          <button class="btn" id="menu">MAIN MENU</button>
+        </div>
+      </div>
+
+      <div id="ui">
+        <div>SCORE <span id="score">0</span></div>
+        <div id="charges">VOMIT 2/2</div>
+        <div id="reload-bar"><div id="reload-fill"></div></div>
+      </div>
+    </div>
+
+    <script type="module">
+      const c = document.getElementById('c');
+      const ctx = c.getContext('2d');
+      let w, h, frame = 0;
+
+      // === CONFIG ===
+      const G = 1.8, JUMP = -32, SPEED = 5, GROUND = 100;
+      const player = {
+        x: 80, y: 0, w: 60, h: 90, vy: 0, onGround: true,
+        jumps: 0, charges: 2, reloading: 0, score: 0
+      };
+      let camels = [], shots = [], parts = [];
+
+      // === SUPABASE (anonymous) ===
+      import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+      const SUPABASE_URL = 'https://xybyjldasdstkvpagmdk.supabase.co';
+      const SUPABASE_KEY = 'sb_publishable_5_B_Oh3Pcr-dppdUoxpGeg_oqRYKlCK';
+      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+      let userId = 'guest_' + Math.random().toString(36).slice(2,9);
+      
+      (async () => {
+        try {
+          const { data } = await supabase.auth.signInAnonymously();
+          userId = data.user?.id || userId;
+        } catch(e) { console.error("Supabase auth failed:", e); }
+
+        // === AUDIO (one-liner) ===
+        const audio = (url, vol=0.4) => {
+          const a = new Audio(url); a.volume = vol; return () => { a.currentTime=0; a.play().catch(()=>{}); };
+        };
+        const sfx = {
+          jump: audio('https://assets.codepen.io/605876/jump.mp3'),
+          fart: audio('https://assets.codepen.io/605876/fart.mp3', 0.6), 
+          vomit: audio('https://assets.codepen.io/605876/hit.mp3'),
+          hit: audio('https://assets.codepen.io/605876/explode.mp3')
+        };
+
+        // === INPUT ===
+        const jump = () => { if (player.jumps < 2) { player.vy = JUMP; player.jumps++; player.onGround = false; sfx.jump(); if (player.jumps===2 && Math.random()<0.15) sfx.fart(); }};
+        const vomit = () => { 
+          if (player.charges > 0) { 
+            player.charges--; 
+            sfx.vomit(); 
+            shots.push({x:player.x+player.w, y:player.y+30, vx:20}); 
+            // Start the reload timer if the last charge was used.
+            if(player.charges === 1 && player.reloading === 0) player.reloading = 600;
+            if(player.charges === 0) player.reloading = 600; 
+          }
+        };
+        c.addEventListener('pointerdown', e => {
+          const rect = c.getBoundingClientRect();
+          if (e.clientY - rect.top < rect.height/2) {
+            jump();
+          } else {
+            vomit();
+          }
+        });
+        onkeydown = e => { if(e.code==='Space') jump(); if(e.key==='ArrowDown') vomit(); };
+
+        // === PARTICLES ===
+        const particle = (x,y,c) => parts.push({x,y,vx:(Math.random()-0.5)*10, vy:(Math.random()-0.5)*10-5, c, life:60});
+
+        // === GAME LOOP ===
+        const resize = () => { w = c.width = c.clientWidth * devicePixelRatio; h = c.height = c.clientHeight * devicePixelRatio; };
+        
+        const loop = () => {
+          ctx.fillStyle = '#000033';
+          ctx.fillRect(0,0,w,h);
+
+          // background toilets
+          const off = (frame*SPEED)%200;
+          for(let x=-off; x<w+200; x+=200) {
+            for(let y=0; y<h-GROUND; y+=200) {
+              if(toiletImg.complete && toiletImg.naturalHeight !== 0) {
+                ctx.drawImage(toiletImg, x, y, 180, 180);
+              }
+            }
+          }
+
+          // ground
+          ctx.fillStyle = '#654321';
+          ctx.fillRect(0, h-GROUND, w, GROUND);
+
+          // player physics
+          if (!player.onGround) player.vy += G;
+          player.y = Math.min(h - GROUND - player.h, player.y + player.vy);
+          if (player.y >= h - GROUND - player.h) { 
+            player.y = h - GROUND - player.h; 
+            player.vy = 0; 
+            player.onGround = true; 
+            player.jumps = 0; 
+          }
+
+          // vomit shots
+          shots = shots.filter(s => {
+            s.x += s.vx; ctx.fillStyle = '#0f0'; ctx.fillRect(s.x, s.y, 30, 12); return s.x < w; 
+          });
+
+          // camels
+          if (frame % 90 === 0) camels.push({x:w, y:h-GROUND-100, vx: SPEED+5+Math.random()*6, hp:3});
+          
+          for(let i = camels.length - 1; i >= 0; i--) {
+            const c = camels[i];
+            
+            c.x -= c.vx;
+            // draw camel 
+            ctx.fillStyle = '#d2b48c';
+            ctx.fillRect(c.x+20, c.y+20, 100, 70);
+            ctx.fillStyle = '#b8860b';
+            ctx.fillRect(c.x+40, c.y, 30, 40);
+            ctx.fillRect(c.x+70, c.y+5, 35, 35);
+
+            // collision with vomit
+            shots = shots.filter(s => {
+              if (s.x + 30 > c.x && s.x < c.x + 120 && s.y + 12 > c.y + 20 && s.y < c.y + 90) {
+                c.hp--; sfx.hit(); for(let k=0;k<20;k++) particle(s.x,s.y,'#0f0');
+                player.score += 15; return false; 
+              } 
+              return true; 
+            });
+
+            if (c.hp <= 0) { 
+              player.score += 100; 
+              for(let k=0;k<60;k++) particle(c.x+60,c.y+40,'#0f0'); 
+              camels.splice(i,1); 
+              continue; 
+            } 
+            
+            // Player collision with camel
+            if (c.x < player.x+player.w && c.x+120 > player.x && player.y+player.h > c.y + 20 && player.y < c.y + 90) { endGame(); }
+          }; 
+
+          // draw player
+          ctx.save();
+          ctx.translate(player.x+player.w/2, player.y+player.h);
+          ctx.scale(1, 0.9 + Math.abs(player.vy)/100);
+          ctx.fillStyle = '#ff69b4';
+          ctx.fillRect(-30, -90, 60, 90);
+          ctx.fillStyle = '#00ffff';
+          ctx.fillRect(-20, -70, 40, 60);
+          ctx.restore();
+
+          // particles
+          parts.forEach((p,i) => {
+            p.x += p.vx - SPEED; p.y += p.vy; p.vy += 0.5; p.life--;
+            ctx.fillStyle = p.c; ctx.globalAlpha = p.life/60;
+            ctx.fillRect(p.x, p.y, 8, 8);
+            if (p.life<=0) parts.splice(i,1);
+          });
+          ctx.globalAlpha = 1;
+
+          // UI and Reload
+          document.getElementById('score').textContent = player.score;
+          document.getElementById('charges').textContent = `VOMIT ${player.charges}/2`; 
+          
+          if (player.reloading > 0) {
+            player.reloading--;
+            document.getElementById('reload-fill').style.width = (1 - player.reloading/600)*100 + '%';
+            if (player.reloading === 0 && player.charges < 2) {
+              player.charges = 2; 
+            }
+          } else {
+            if (player.charges === 2) {
+              document.getElementById('reload-fill').style.width = '0%';
+            }
+          }
+          
+          frame++;
+          if (running) requestAnimationFrame(loop);
+        };
+
+        // === SCREENS ===
+        let running = false;
+        const start = () => {
+          running = true;
+          player.score = 0; player.charges = 2; player.reloading = 0; 
+          // Ensure player starts on the ground
+          resize(); 
+          player.y = h - GROUND - player.h; 
+          player.vy = 0; player.onGround = true; player.jumps = 0;
+          camels = []; shots = []; parts = [];
+          document.getElementById('start').classList.remove('active');
+          document.getElementById('over').classList.remove('active'); 
+          loop();
+        };
+        const endGame = async () => {
+          running = false;
+          document.getElementById('final').textContent = player.score;
+          await saveScore(player.score);
+          document.getElementById('over').classList.add('active');
+        };
+
+        // === HIGHSCORES===
+        const saveScore = async (score) => {
+          try {
+            const { data } = await supabase.from('terry_scores').select('score').eq('user_id', userId).single();
+            if (!data || score > data.score) {
+              await supabase.from('terry_scores').upsert({ user_id: userId, score });
+            }
+            loadScores();
+          } catch (e) { console.error("Error saving score:", e); }
+        };
+        const loadScores = async () => {
+          const list = document.getElementById('list');
+          try {
+            const { data } = await supabase.from('terry_scores').select('score,user_id').order('score', {ascending:false}).limit(10);
+            list.innerHTML = data?.length ? data.map((r,i)=>`<div>#${i+1} ${r.user_id.slice(0,8)}... ${r.score}</div>`).join('') : 'No scores yet';
+            const best = data?.find(r=>r.user_id===userId)?.score || 0;
+            document.getElementById('best').textContent = Math.max(best, player.score);
+          } catch (e) { console.error("Error loading scores:", e); list.innerHTML = 'Error loading scores.'; }
+        };
+
+        // === BUTTONS ===
+        document.getElementById('play').onclick = start;
+        document.getElementById('again').onclick = start;
+        document.getElementById('menu').onclick = () => { document.getElementById('over').classList.remove('active'); document.getElementById('start').classList.add('active'); };
+        document.getElementById('scoresBtn').onclick = () => { document.getElementById('scoreboard').style.display = 'block'; loadScores(); };
+
+        // === STARTUP ===
+        const toiletImg = new Image(); 
+        toiletImg.onerror = () => { console.warn("Could not load toilet image. Background draw will be skipped."); };
+        // NOTE: This image URL is a placeholder. You should replace it with your own asset or a valid base64 URI.
+        toiletImg.src = 'https://assets.codepen.io/605876/toilet-placeholder.svg'; 
+
+        resize(); 
+        window.onresize = () => { 
+          resize(); 
+          player.y = h - GROUND - player.h;
+        };
+        
+        // Initial grounding of the player.
+        player.y = h - GROUND - player.h;
+        
+        loadScores();
+      })(); 
+    </script>
+  </body>
+</html>
