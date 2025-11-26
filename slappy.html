@@ -232,7 +232,7 @@
             SCORE: <span id="score-display">0</span>
         </div>
         <div id="top-player-hud">
-            🏆 TOP: <span id="top-player-name">---</span> (<span id="top-player-score">0</span>)
+            醇 TOP: <span id="top-player-name">---</span> (<span id="top-player-score">0</span>)
         </div>
         <div class="control-hint">
             &larr; TAP LEFT | TAP RIGHT &rarr;
@@ -242,7 +242,7 @@
     </div>
 
     <div id="start-screen">
-        <div style="font-size:60px; margin-bottom:10px;">💩</div>
+        <div style="font-size:60px; margin-bottom:10px;">朝</div>
         <h1>SLAPPY<br>TURD</h1>
         <p class="subtitle">TAP LEFT to go Left<br>TAP RIGHT to go Right<br>The floor is FIRE!</p>
         
@@ -330,7 +330,7 @@
             
             // Function to generate score list HTML
             const generateHtml = (scores) => {
-                let html = `<strong>💩 GLOBAL TOP 10</strong><ol>`;
+                let html = `<strong>朝 GLOBAL TOP 10</strong><ol>`;
                 if (scores.length === 0) html += '<li>No scores yet.</li>';
                 else scores.forEach((s, index) => html += `<li><span>${(index + 1)}. ${s.name}</span><span>${s.score}</span></li>`);
                 html += '</ol>';
@@ -418,22 +418,38 @@
         return c;
     }
 
-    // --- AUDIO SYSTEM (UNCHANGED) ---
+    // --- AUDIO SYSTEM (UPDATED FOR MOBILE) ---
     const AudioSys = {
         ctx: null,
         fartSound: new Audio('https://s3.amazonaws.com/html5gamedev.com/fart.mp3'),
         screamSound: new Audio('https://s3.amazonaws.com/html5gamedev.com/scream.mp3'),
-        init: function() {
+        isInitialized: false,
+
+        // The new function that both initializes and unlocks the AudioContext
+        initAndUnlock: function() {
+            if (this.isInitialized) return;
             try {
                 window.AudioContext = window.AudioContext || window.webkitAudioContext;
                 this.ctx = new AudioContext();
+                
+                // Unlock on first interaction (required by many mobile browsers)
+                if (this.ctx.state === 'suspended') {
+                    const buffer = this.ctx.createBuffer(1, 1, 22050);
+                    const source = this.ctx.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(this.ctx.destination);
+                    source.start(0);
+                }
+                this.isInitialized = true;
             } catch (e) {
                 console.warn("AudioContext not supported or blocked:", e);
                 this.ctx = null;
+                this.isInitialized = true; // Mark as initialized even if failed
             }
         },
+
         playTone: function(freq, type, duration, vol=0.1) {
-            if (!this.ctx) return;
+            if (!this.ctx || this.ctx.state === 'suspended') return;
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             osc.type = type;
@@ -448,11 +464,14 @@
         playFart: function() {
             if(this.fartSound) {
                 this.fartSound.currentTime = 0;
+                // Use a promise-catching wrapper to fall back to tone if blocked
                 this.fartSound.play().catch(() => this.playTone(60, 'sawtooth', 0.5, 0.5));
+            } else {
+                 this.playTone(60, 'sawtooth', 0.5, 0.5);
             }
         },
         playScream: function() {
-            if(this.screamSound) {
+             if(this.screamSound) {
                 this.screamSound.currentTime = 0;
                 this.screamSound.play().catch(() => {
                     const osc = this.ctx.createOscillator();
@@ -623,11 +642,10 @@
         ctx.restore();
     }
 
-    // Draw Background with Parallax
+    // Draw Background with Parallax (UPDATED for stable right-scrolling)
     function drawBackground() {
         const playableHeight = state.height - FIRE_HEIGHT;
         const viewPortSpeed = scrollSpeed * 0.5;
-        const playerShift = state.width * 0.5 - player.x; 
 
         state.bgScrollX -= viewPortSpeed; 
 
@@ -645,7 +663,7 @@
         const cloudOffset = (state.bgScrollX * cloudParallaxFactor) % (state.width * 2);
 
         ctx.save();
-        ctx.translate(cloudOffset + playerShift * 0.1, 0);
+        ctx.translate(cloudOffset, 0); 
         for (let i = 0; i < 2; i++) {
             BACKGROUND_ASSETS.clouds.forEach(c => {
                 const x = c.x * state.width + i * state.width * 2; 
@@ -752,7 +770,7 @@
         document.getElementById('score-display').innerText = "0";
         document.getElementById('effects-container').innerHTML = '';
 
-        if (!AudioSys.ctx) AudioSys.init();
+        // Audio should be initialized/unlocked by the input handler before this
         AudioSys.playFart(); 
 
         requestAnimationFrame(loop);
@@ -849,64 +867,71 @@
         player.x += player.vx;
         player.rot = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, (player.vy * 0.1)));
 
-        // Turd's effective hit area
-        const pW = turdCanvas.width;
-        const pH = turdCanvas.height;
-        const pX = player.x;
-        const pY = player.y;
+        // Turd's effective hit area constants
+        const pR = player.radius;
+        const pCX = player.x + turdCanvas.width / 2; // Player Center X
+        const pCY = player.y + turdCanvas.height / 2; // Player Center Y
 
         // 1. Fire Floor Collision
         const fireLine = state.height - FIRE_HEIGHT;
-        if (pY + pH >= fireLine) { 
+        if (player.y + turdCanvas.height >= fireLine) { 
             gameOver('fire');
             return;
         }
         
         // 2. Ceiling
-        if (pY <= 0) { 
+        if (player.y <= 0) { 
             player.y = 0;
             player.vy = 0;
         }
 
         // 3. Right Wall
-        if (player.x > state.width - pW) {
-            player.x = state.width - pW;
+        if (player.x > state.width - turdCanvas.width) {
+            player.x = state.width - turdCanvas.width;
             player.vx = 0;
         }
         
-        // 4. Left Wall Collision (REQUESTED CHANGE: Prevent going off screen left)
+        // 4. Left Wall Collision (Fixed to prevent going off screen left)
         if (player.x < 0) {
             player.x = 0;
             player.vx = 0;
         }
         
         // 5. Hands Spawning
-        if (state.frames % Math.floor(1000 / (scrollSpeed * 3)) === 0) generateNewHandPair();
+        const spawnInterval = Math.floor(1000 / (Math.max(0.1, scrollSpeed) * 3));
+        if (state.frames % spawnInterval === 0) generateNewHandPair();
 
-        // 6. Hands Movement, Collision, and Scoring
+        // 6. Hands Movement, Circular Collision, and Scoring (UPDATED)
         for (let i = hands.length - 1; i >= 0; i--) {
             let h = hands[i];
             h.x -= scrollSpeed;
 
-            // Collision Check
-            if (pX < h.x + h.w && pX + pW > h.x && pY < h.y + h.h && pY + pH > h.y) {
+            // --- Circular Collision Check (Point AABB Test for circular player) ---
+            // Find the closest point on the hand's bounding box to the player's center
+            const closestX = Math.max(h.x, Math.min(pCX, h.x + h.w));
+            const closestY = Math.max(h.y, Math.min(pCY, h.y + h.h));
+
+            // Calculate the distance between the closest point and the player's center
+            const distSq = (pCX - closestX) ** 2 + (pCY - closestY) ** 2;
+
+            if (distSq < pR ** 2) {
                 gameOver('slap');
                 return;
             }
 
-            // Scoring Check (Only check on the top hand of the pair, identified by !h.isBottom)
+            // --- Scoring Check ---
+            // Only check on the top hand of the pair, identified by !h.isBottom
             if (!h.isBottom && !h.passed) {
-                // Check if the player's front edge has passed the hand's rear edge
-                if (pX > h.x + h.w) { 
-                    const playerCenterY = pY + pH / 2;
+                // Check if the player's center X has passed the hand's rear edge
+                if (pCX > h.x + h.w) { 
                     const gapSize = Math.max(160, 220 - (state.score * 2));
                     
-                    if (playerCenterY >= h.gapCenterY - gapSize / 2 && 
-                        playerCenterY <= h.gapCenterY + gapSize / 2) {
+                    if (pCY >= h.gapCenterY - gapSize / 2 && 
+                        pCY <= h.gapCenterY + gapSize / 2) {
                         
                         h.passed = true;
                         // Mark the corresponding bottom hand as passed too to prevent double-scoring
-                        hands[i+1].passed = true; 
+                        if (i + 1 < hands.length) hands[i + 1].passed = true; 
 
                         state.score++;
                         document.getElementById('score-display').innerText = state.score;
@@ -972,6 +997,8 @@
     }
 
     function handleInput(e, type) {
+        AudioSys.initAndUnlock(); // Initialize/Unlock audio on first user input
+
         if (!state.running) return;
         if (e.type !== 'keydown') e.preventDefault();
         
