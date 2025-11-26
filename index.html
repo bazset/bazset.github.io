@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Damaged Games - New Reality</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind to use a custom, dark/retro color palette -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Custom colors inspired by the logo
+                        'bd-purple': '#380A3A',
+                        'bd-dark': '#1A041B',
+                        'bd-yellow': '#FACC15',
+                        'bd-red': '#B91C1C',
+                    },
+                    fontFamily: {
+                        // Use a monospace font for a retro/pixel feel
+                        sans: ['Inter', 'monospace'],
+                    },
+                    keyframes: {
+                        'glitch': {
+                            '0%, 100%': { transform: 'translate(0, 0)', opacity: 1 },
+                            '10%': { transform: 'translate(-2px, -2px)', opacity: 0.8 },
+                            '20%': { transform: 'translate(2px, 2px)', opacity: 0.9 },
+                            '30%': { transform: 'translate(-3px, 3px)', opacity: 0.7 },
+                            '40%': { transform: 'translate(3px, -3px)', opacity: 0.95 },
+                            '50%': { transform: 'translate(-1px, 1px)', opacity: 0.85 },
+                            '60%': { transform: 'translate(4px, -4px)', opacity: 0.75 },
+                            '70%': { transform: 'translate(-4px, 4px)', opacity: 0.9 },
+                            '80%': { transform: 'translate(1px, -1px)', opacity: 0.8 },
+                            '90%': { transform: 'translate(-2px, 2px)', opacity: 0.98 },
+                        },
+                    },
+                    animation: {
+                        'slow-glitch': 'glitch 4s infinite alternate',
+                        'fast-glitch': 'glitch 0.2s infinite alternate',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Custom style for the blood dripping effect and glow -->
+    <style>
+        body {
+            background-color: #1A041B; /* bd-dark */
+        }
+        /* Custom class for a subtle yellow glow effect */
+        .yellow-glow {
+            text-shadow: 0 0 5px #FACC15, 0 0 10px #FACC15;
+            box-shadow: 0 0 15px rgba(250, 204, 21, 0.6);
+        }
+        /* Style for the button hover effect */
+        .btn-glitch:hover {
+            animation: fast-glitch 0.2s infinite alternate;
+        }
+        /* Style for the logo container to ensure high contrast */
+        .logo-container {
+             /* Use the logo's color for a vibrant background block */
+            background-color: #380A3A;
+            border: 4px solid #FACC15;
+            padding: 1rem;
+            box-shadow: 0 0 30px rgba(250, 204, 21, 0.4);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 text-white">
+
+    <!-- Main Container - Centered and Responsive -->
+    <main class="w-full max-w-4xl text-center">
+
+        <!-- Logo/Title Section - Inspired by the pixel art -->
+        <div class="logo-container mx-auto max-w-xs md:max-w-sm rounded-xl mb-12 transform hover:scale-[1.01] transition duration-300">
+            <!-- Logo image -->
+            <img 
+                src="bdg-logo.jpg" 
+                alt="Brain Damaged Games Logo: Pixelated brain splitting with dripping blood."
+                class="w-full h-auto rounded-lg"
+            />
+        </div>
+
+        <!-- Main Heading - Glitchy and Prominent -->
+        <h1 class="text-6xl md:text-8xl font-bold mb-4 uppercase text-bd-yellow yellow-glow animate-slow-glitch">
+            Brain Damaged
+        </h1>
+        <p class="text-3xl md:text-4xl text-bd-red mb-16 font-mono tracking-widest">
+            Games
+        </p>
+
+        <!-- Featured Game Call to Action -->
+        <section class="mb-16">
+            <h2 class="text-xl md:text-2xl text-bd-yellow mb-4 uppercase tracking-wider">
+                Now Loading Our First Reality Fracture:
+            </h2>
+            <h3 class="text-4xl md:text-5xl font-extrabold mb-8 text-white">
+                "Shag Carpet Runner"
+            </h3>
+            
+            <!-- Launch Game Button -->
+            <a href="game.html" class="inline-block px-12 py-5 text-xl md:text-2xl font-bold uppercase tracking-widest bg-bd-red text-white rounded-lg transition duration-150 ease-in-out hover:bg-red-700 active:translate-y-1 btn-glitch">
+                // ENTER THE VOID //
+            </a>
+            <p class="mt-4 text-gray-400 text-sm italic">Warning: May contain 70s nostalgia and poor life choices.</p>
+        </section>
+
+        <!-- Footer / Social Links -->
+        <footer class="mt-20 pt-6 border-t border-bd-purple text-gray-500">
+            <div class="flex justify-center space-x-6 text-lg">
+                <a href="#" class="hover:text-bd-yellow transition duration-150">TWITCH</a>
+                <a href="#" class="hover:text-bd-yellow transition duration-150">DISCORD</a>
+                <a href="#" class="hover:text-bd-yellow transition duration-150">PRESSKIT</a>
+            </div>
+            <p class="mt-4 text-xs">
+                © 2024 BRAIN DAMAGED GAMES. All rights reserved.
+            </p>
+        </footer>
+    </main>
+
+</body>
+</html>
