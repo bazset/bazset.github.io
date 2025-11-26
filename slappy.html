@@ -232,7 +232,7 @@
             SCORE: <span id="score-display">0</span>
         </div>
         <div id="top-player-hud">
-            醇 TOP: <span id="top-player-name">---</span> (<span id="top-player-score">0</span>)
+            👑 TOP: <span id="top-player-name">---</span> (<span id="top-player-score">0</span>)
         </div>
         <div class="control-hint">
             &larr; TAP LEFT | TAP RIGHT &rarr;
@@ -242,7 +242,7 @@
     </div>
 
     <div id="start-screen">
-        <div style="font-size:60px; margin-bottom:10px;">朝</div>
+        <div style="font-size:60px; margin-bottom:10px;">💩</div>
         <h1>SLAPPY<br>TURD</h1>
         <p class="subtitle">TAP LEFT to go Left<br>TAP RIGHT to go Right<br>The floor is FIRE!</p>
         
@@ -330,7 +330,7 @@
             
             // Function to generate score list HTML
             const generateHtml = (scores) => {
-                let html = `<strong>朝 GLOBAL TOP 10</strong><ol>`;
+                let html = `<strong>🏆 GLOBAL TOP 10</strong><ol>`;
                 if (scores.length === 0) html += '<li>No scores yet.</li>';
                 else scores.forEach((s, index) => html += `<li><span>${(index + 1)}. ${s.name}</span><span>${s.score}</span></li>`);
                 html += '</ol>';
@@ -418,11 +418,12 @@
         return c;
     }
 
-    // --- AUDIO SYSTEM (UPDATED FOR MOBILE) ---
+    // --- AUDIO SYSTEM (UPDATED FOR MOBILE AND LOCAL FILES) ---
     const AudioSys = {
         ctx: null,
-        fartSound: new Audio('https://s3.amazonaws.com/html5gamedev.com/fart.mp3'),
-        screamSound: new Audio('https://s3.amazonaws.com/html5gamedev.com/scream.mp3'),
+        // *** UPDATED to use local file paths ***
+        fartSound: new Audio('fart.mp3'),
+        screamSound: new Audio('scream.mp3'),
         isInitialized: false,
 
         // The new function that both initializes and unlocks the AudioContext
@@ -473,6 +474,7 @@
         playScream: function() {
              if(this.screamSound) {
                 this.screamSound.currentTime = 0;
+                // *** playScream is called on death ***
                 this.screamSound.play().catch(() => {
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
@@ -770,7 +772,7 @@
         document.getElementById('score-display').innerText = "0";
         document.getElementById('effects-container').innerHTML = '';
 
-        // Audio should be initialized/unlocked by the input handler before this
+        // *** playFart() is called on game start/load ***
         AudioSys.playFart(); 
 
         requestAnimationFrame(loop);
@@ -828,11 +830,13 @@
         state.running = false;
         
         if (reason === 'fire') {
+            // *** scream.mp3 is played on death by fire ***
             AudioSys.playScream();
             document.getElementById('death-msg').innerText = "ROASTED TURD!";
             document.getElementById('death-msg').style.color = "#FF4500";
         } else {
-            AudioSys.playFart();
+            // *** scream.mp3 is played on death by slap/collision ***
+            AudioSys.playScream();
             const msgs = ["SLAPPED!", "FLUSHED!", "SQUISHED!", "HANDLED!"];
             document.getElementById('death-msg').innerText = msgs[Math.floor(Math.random()*msgs.length)];
             document.getElementById('death-msg').style.color = "#ddd";
@@ -935,7 +939,14 @@
 
                         state.score++;
                         document.getElementById('score-display').innerText = state.score;
-                        AudioSys.sfxScore();
+                        
+                        // *** Randomly play fart (25% chance) or normal score tone ***
+                        if (Math.random() < 0.25) {
+                            AudioSys.playFart();
+                        } else {
+                            AudioSys.sfxScore();
+                        }
+
                         if(state.score % 5 === 0) {
                             scrollSpeed += 0.2;
                             showFloatText("SPEED UP!");
