@@ -75,6 +75,19 @@
             font-size: 20px;
             z-index: 10;
         }
+        
+        /* Display for the #1 player */
+        #top-player-hud {
+            position: absolute;
+            top: 70px; /* Below the current score */
+            left: 20px;
+            color: #ffcc00; /* Gold color for top score */
+            text-shadow: 2px 2px 0 #000;
+            font-size: 10px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
 
         .control-hint {
             position: absolute;
@@ -134,6 +147,7 @@
             transition: transform 0.1s;
             text-transform: uppercase;
             margin-top: 20px;
+            margin-bottom: 10px; /* Adjusted for better spacing in game over */
         }
 
         .btn:active {
@@ -153,7 +167,7 @@
             z-index: 50;
         }
         
-        #high-score-list {
+        #high-score-list-start {
             color: #fff; 
             margin: 10px 0; 
             font-size: 10px; 
@@ -165,12 +179,12 @@
             padding: 15px;
             box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
         }
-        #high-score-list ol {
+        #high-score-list-start ol {
             padding-left: 20px; 
             list-style-type: none;
             margin: 0;
         }
-        #high-score-list li {
+        #high-score-list-start li {
             margin-top: 6px;
             display: flex;
             justify-content: space-between;
@@ -217,6 +231,9 @@
         <div class="hud-top">
             SCORE: <span id="score-display">0</span>
         </div>
+        <div id="top-player-hud">
+            🏆 TOP: <span id="top-player-name">---</span> (<span id="top-player-score">0</span>)
+        </div>
         <div class="control-hint">
             &larr; TAP LEFT | TAP RIGHT &rarr;
             <br><span style="color:#ff4444;">DON'T TOUCH THE FIRE!</span>
@@ -229,7 +246,7 @@
         <h1>SLAPPY<br>TURD</h1>
         <p class="subtitle">TAP LEFT to go Left<br>TAP RIGHT to go Right<br>The floor is FIRE!</p>
         
-        <div id="high-score-list">Loading Scores...</div>
+        <div id="high-score-list-start">Loading Scores...</div>
 
         <button class="btn" id="start-btn">PLAY</button>
     </div>
@@ -239,6 +256,7 @@
         <p class="subtitle" id="death-msg">You burned.</p>
         <p class="subtitle" style="font-size: 16px;">SCORE: <span id="final-score">0</span></p>
         <button class="btn" id="restart-btn">RETRY</button>
+        <button class="btn" id="view-scores-btn" style="background:#555; box-shadow: 0 6px 0 #333;">VIEW HIGH SCORES</button>
     </div>
 </div>
 
@@ -292,18 +310,36 @@
                     gamename: this.GAME_ID 
                 };
                 await supabase.from(this.SCORE_TABLE).insert([newScoreData]);
-                this.displayScores();
+                this.displayScores(); // Refresh all score displays after save
             }
         },
         
         displayScores: async function() {
             const scores = await this.loadScores();
-            const listEl = document.getElementById('high-score-list');
-            let html = `<strong>💩 GLOBAL TOP 10</strong><ol>`;
-            if (scores.length === 0) html += '<li>No scores yet.</li>';
-            else scores.forEach((s, index) => html += `<li><span>${(index + 1)}. ${s.name}</span><span>${s.score}</span></li>`);
-            html += '</ol>';
-            listEl.innerHTML = html;
+            
+            // 1. Update the HUD for the top player
+            const topPlayerNameEl = document.getElementById('top-player-name');
+            const topPlayerScoreEl = document.getElementById('top-player-score');
+            if (scores.length > 0) {
+                topPlayerNameEl.innerText = scores[0].name;
+                topPlayerScoreEl.innerText = scores[0].score;
+            } else {
+                topPlayerNameEl.innerText = "---";
+                topPlayerScoreEl.innerText = "0";
+            }
+            
+            // Function to generate score list HTML
+            const generateHtml = (scores) => {
+                let html = `<strong>💩 GLOBAL TOP 10</strong><ol>`;
+                if (scores.length === 0) html += '<li>No scores yet.</li>';
+                else scores.forEach((s, index) => html += `<li><span>${(index + 1)}. ${s.name}</span><span>${s.score}</span></li>`);
+                html += '</ol>';
+                return html;
+            };
+
+            // 2. Update the Start Screen list (the original location)
+            const listStartEl = document.getElementById('high-score-list-start');
+            listStartEl.innerHTML = generateHtml(scores);
         }
     };
 
@@ -708,8 +744,11 @@
         state.frames = 0;
         state.bgScrollX = 0;
         
+        // Hide all screens, display HUD
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('game-over-screen').classList.add('hidden');
+        document.getElementById('ui-layer').classList.remove('hidden'); 
+
         document.getElementById('score-display').innerText = "0";
         document.getElementById('effects-container').innerHTML = '';
 
@@ -793,7 +832,7 @@
                 const inputName = window.prompt(`NEW HIGH SCORE! Enter name (max 10 chars):`); 
                 HighScoreSys.checkAndSaveScore(inputName || "POO", state.score);
             } else {
-                HighScoreSys.displayScores();
+                HighScoreSys.displayScores(); // Update HUD/Start Screen scores
             }
         });
     }
@@ -952,6 +991,13 @@
         AudioSys.sfxFlap();
     }
 
+    // --- UI Logic ---
+    function showStartScreen() {
+        document.getElementById('game-over-screen').classList.add('hidden');
+        document.getElementById('start-screen').classList.remove('hidden');
+        HighScoreSys.displayScores(); // Refresh scores when returning to start screen
+    }
+
     window.addEventListener('keydown', (e) => handleInput(e, 'key'));
     const frame = document.getElementById('phone-frame');
     frame.addEventListener('mousedown', (e) => handleInput(e, 'mouse'));
@@ -960,6 +1006,8 @@
     window.addEventListener('resize', resize);
     document.getElementById('start-btn').addEventListener('click', initGame);
     document.getElementById('restart-btn').addEventListener('click', initGame);
+    // The View Scores button now calls showStartScreen to view the scores
+    document.getElementById('view-scores-btn').addEventListener('click', showStartScreen);
 
     HighScoreSys.displayScores();
     setTimeout(resize, 100);
