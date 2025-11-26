@@ -364,8 +364,10 @@
                 return scores || [];
             } catch (e) {
                 console.error("Error loading scores from Supabase:", e);
-                document.getElementById('high-score-list').innerHTML = 
-                    '<strong> TOP 10 SCORES </strong><p style="color: #ff4444; margin-top: 10px; font-size: 8px;">Error loading scores. Check setup/network/keys.</p>';
+                // MODIFICATION: Clearer error message stating the game will still run
+                const listEl = document.getElementById('high-score-list');
+                listEl.innerHTML = 
+                    '<strong style="color: #ffcc00;"> TOP 10 SCORES </strong><p style="color: #ff4444; margin-top: 10px; font-size: 8px;">NETWORK/DB ERROR: Cannot load scores. Game will still start.</p>';
                 return []; 
             }
         },
@@ -410,7 +412,12 @@
             let html = `<strong> ${this.GAME_ID.replace('_', ' ')} TOP ${this.MAX_SCORES} </strong><ol style="padding-left: 20px; list-style-type: none; margin: 0;">`;
             
             if (scores.length === 0) {
-                html += '<li style="margin-top: 10px;">Loading... or Be the first to score!</li>';
+                // MODIFICATION: Check if a detailed error message is already present
+                if (listEl.innerHTML.includes('NETWORK/DB ERROR')) {
+                    // Do nothing, keep the error message visible
+                } else {
+                    html += '<li style="margin-top: 10px;">Be the first to score!</li>';
+                }
             } else {
                 scores.forEach((s, index) => {
                     html += `
@@ -826,7 +833,8 @@
     document.getElementById('start-btn').addEventListener('click', resetGame);
     document.getElementById('restart-btn').addEventListener('click', resetGame);
 
-    // Initial Load of Scores
+    // Initial Load of Scores (MODIFICATION: Add initial placeholder text)
+    document.getElementById('high-score-list').innerHTML = `<strong> ${HighScoreSys.GAME_ID.replace('_', ' ')} TOP ${HighScoreSys.MAX_SCORES} </strong><ol style="padding-left: 20px; list-style-type: none; margin: 0;"><li style="margin-top: 10px;">Loading Scores...</li></ol>`; 
     HighScoreSys.displayScores(); 
 
     animate();
