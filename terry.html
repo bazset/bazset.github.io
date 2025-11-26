@@ -1,383 +1,934 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Terry the Camel Deluxe</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+Start+2P&family=Bungee+Inline&display=swap" rel="stylesheet" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TERRY MPREG | Brain Damaged Games</title>
     <style>
-      :root {
-        --bg: #000;
-        --pink: #ff69b4;
-        --cyan: #00ffff;
-        --vomit: #00ff00;
-        --reload: #ff4500;
-        --ground: #654321;
-        --text: 'Press Start 2P', cursive;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        height: 100dvh;
-        background: var(--bg);
-        font-family: var(--text);
-        overflow: hidden;
-        display: grid;
-        place-items: center;
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-      }
-      #game {
-        width: min(90vw, 480px);
-        aspect-ratio: 9 / 16;
-        background: #111;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 0 50px rgba(255, 105, 180, 0.6);
-        position: relative;
-      }
-      canvas { display: block; width: 100%; height: 100%; }
-      .overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(0,0,0,0.97);
-        color: var(--cyan);
-        display: grid;
-        place-items: center;
-        text-align: center;
-        padding: 2rem;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity .4s;
-      }
-      .overlay.active { opacity: 1; pointer-events: all; }
-      h1 {
-        font-family: 'Bungee Inline', cursive;
-        font-size: clamp(2rem, 8vw, 5rem);
-        color: var(--vomit);
-        text-shadow: 6px 6px 0 var(--pink);
-        margin: 0;
-      }
-      p { margin: 1rem 0; font-size: clamp(0.8rem, 2.5vw, 1.1rem); }
-      .btn {
-        background: var(--pink);
-        color: #000;
-        border: 5px solid var(--cyan);
-        padding: 1rem 2rem;
-        margin: .5rem;
-        font-family: var(--text);
-        font-size: clamp(.9rem, 3vw, 1.2rem);
-        text-transform: uppercase;
-        border-radius: 10px;
-        box-shadow: 0 6px 0 var(--reload);
-        transition: transform .1s, box-shadow .1s;
-      }
-      .btn:active {
-        transform: translateY(4px);
-        box-shadow: 0 2px 0 var(--reload);
-      }
-      #ui {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        padding: 1rem;
-        font-size: 1.1rem;
-        color: var(--pink);
-      }
-      #charges {
-        position: absolute;
-        right: 1rem;
-        top: 1rem;
-        color: var(--vomit);
-      }
-      #reload-bar {
-        position: absolute;
-        right: 1rem;
-        top: 3.5rem;
-        width: 160px;
-        height: 20px;
-        background: #333;
-        border: 3px solid #fff;
-        overflow: hidden;
-      }
-      #reload-fill {
-        height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, var(--reload), #ff8c00);
-        transition: width .05s linear;
-      }
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #333;
+            touch-action: none; /* Prevent pull-to-refresh on mobile */
+            font-family: 'Press Start 2P', cursive;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hud-top {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            color: white;
+            text-shadow: 2px 2px 0 #000;
+            font-size: 16px; 
+            pointer-events: none;
+        }
+
+        .hud-bottom {
+            padding: 20px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            pointer-events: none;
+        }
+        
+        /* Double Jump Label added here */
+        .cooldown-label {
+            color: white; 
+            font-size: 10px; 
+            margin-right: 10px; 
+            align-self: center;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        /* Cooldown Bar */
+        #jump-meter-container {
+            width: 150px;
+            height: 20px;
+            background: #444;
+            border: 2px solid #000;
+            position: relative;
+        }
+
+        #jump-meter-fill {
+            width: 100%;
+            height: 100%;
+            background-color: #00ff00;
+            transition: width 0.1s linear, background-color 0.2s;
+        }
+
+        /* Menus */
+        .menu-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            text-align: center;
+            color: white;
+            z-index: 10;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 {
+            font-size: 32px;
+            color: #ffcc00;
+            text-shadow: 4px 4px 0 #8b0000;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        h2 { font-size: 18px; color: #ff5555; margin-bottom: 30px; }
+        
+        button {
+            background: #ff0000;
+            border: 4px solid #fff;
+            color: white;
+            font-family: 'Press Start+2P', cursive;
+            font-size: 20px;
+            padding: 15px 30px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #8b0000;
+            margin: 10px;
+            text-transform: uppercase;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        button:active {
+            box-shadow: 0 2px 0 #8b0000;
+            transform: translateY(4px);
+        }
+
+        input[type="text"] {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 20px;
+            padding: 10px;
+            text-align: center;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            width: 300px;
+            border: 4px solid #fff;
+            background: #000;
+            color: #fff;
+        }
+
+        table {
+            margin-top: 20px;
+            border-collapse: collapse;
+            width: 90%;
+            max-width: 500px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid white;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #555;
+            font-size: 12px;
+        }
+        th { color: #ffff00; }
+        td:nth-child(2) { text-align: right; }
+
     </style>
-  </head>
-  <body>
-    <div id="game">
-      <canvas id="c"></canvas>
+    <!-- Load Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
 
-      <div id="start" class="overlay active">
-        <div>
-          <h1>Terry's Gas Attack</h1>
-          <p>The Fart-Powered Double-Jump Runner</p>
-          <p>Tap top = Jump/Double<br>Tap bottom = Vomit Shot (2 max, 10s reload)</p>
-          <button class="btn" id="play">BEGIN DIGESTIVE RAGE</button>
-          <button class="btn" id="scoresBtn">HIGH SCORES</button>
-          <div id="scoreboard" style="margin-top:2rem;display:none;color:#ccc">
-            <h3 style="color:var(--pink)">CHRONICLES OF TURMOIL</h3>
-            <div id="list">Loading...</div>
-          </div>
+    <!-- Audio Element for Music -->
+    <audio id="bgm" loop>
+        <source src="donnie.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="game-container" style="position: relative; width: 100%; height: 100vh;">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="ui-layer">
+            <div class="hud-top">
+                <div id="score-display">SCORE: 0</div>
+                <div id="speed-display">SPD: 100%</div>
+            </div>
+            <div class="hud-bottom">
+                <div class="cooldown-label">DOUBLE JUMP</div> <!-- Label added here -->
+                <div id="jump-meter-container">
+                    <div id="jump-meter-fill"></div>
+                </div>
+            </div>
         </div>
-      </div>
 
-      <div id="over" class="overlay">
-        <div>
-          <h1>BOWEL FAILURE</h1>
-          <p>Score: <span id="final">0</span> | Best: <span id="best">0</span></p>
-          <button class="btn" id="again">REGURGITATE & PLAY</button>
-          <button class="btn" id="menu">MAIN MENU</button>
+        <!-- Start Screen -->
+        <div id="start-screen" class="menu-screen">
+            <h1>TERRY MPREG</h1>
+            <p style="color:#aaa; font-size: 12px; margin-bottom: 20px;">BRAIN DAMAGED GAMES</p>
+            <div style="font-size: 12px; line-height: 1.8; margin-bottom: 30px; max-width: 600px; padding: 0 20px;">
+                TAP TO JUMP. DOUBLE TAP TO DOUBLE JUMP (BAR MUST BE FULL).<br>
+                AVOID TOILETS, CUBES, AND HIGH BARRIERS!
+            </div>
+            <button id="start-btn">RUN TERRY RUN</button>
         </div>
-      </div>
 
-      <div id="ui">
-        <div>SCORE <span id="score">0</span></div>
-        <div id="charges">VOMIT 2/2</div>
-        <div id="reload-bar"><div id="reload-fill"></div></div>
-      </div>
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="menu-screen hidden">
+            <h1 style="color: #ff5555;">TERRY'S WATER BROKE!</h1>
+            <p id="final-score">SCORE: 0</p>
+            
+            <div id="high-score-form">
+                <p>ENTER NAME (MAX 10):</p>
+                <input type="text" id="player-name" maxlength="10" placeholder="YOUR NAME">
+                <br>
+                <button id="submit-score-btn">SUBMIT</button>
+            </div>
+
+            <div id="leaderboard-container" class="hidden">
+                <p style="color: #00ff00;">TOP 10 SURVIVORS</p>
+                <table id="leaderboard-table">
+                    <thead><tr><th>NAME</th><th>SCORE</th></tr></thead>
+                    <tbody id="leaderboard-body"></tbody>
+                </table>
+                <button id="restart-btn" style="margin-top: 20px;">PLAY AGAIN</button>
+            </div>
+        </div>
     </div>
 
     <script type="module">
-      const c = document.getElementById('c');
-      const ctx = c.getContext('2d');
-      let w, h, frame = 0;
+        // --- SUPABASE CONFIGURATION ---
+        const SUPABASE_URL = 'https://xybyjldasdstkvpagmdk.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_5_B_Oh3Pcr-dppdUoxpGeg_oqRYKlCK';
+        const TABLE_NAME = 'Highscores';
+        const GAME_NAME = 'TERRY MPREG';
 
-      // === CONFIG ===
-      const G = 1.8, JUMP = -32, SPEED = 5, GROUND = 100;
-      const player = {
-        x: 80, y: 0, w: 60, h: 90, vy: 0, onGround: true,
-        jumps: 0, charges: 2, reloading: 0, score: 0
-      };
-      let camels = [], shots = [], parts = [];
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      // === SUPABASE (anonymous) ===
-      import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-      const SUPABASE_URL = 'https://xybyjldasdstkvpagmdk.supabase.co';
-      const SUPABASE_KEY = 'sb_publishable_5_B_Oh3Pcr-dppdUoxpGeg_oqRYKlCK';
-      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-      let userId = 'guest_' + Math.random().toString(36).slice(2,9);
-      
-      (async () => {
-        try {
-          const { data } = await supabase.auth.signInAnonymously();
-          userId = data.user?.id || userId;
-        } catch(e) { console.error("Supabase auth failed:", e); }
+        /**
+         * Function to save the score to the Supabase Highscores table.
+         */
+        async function saveScore(name, score) {
+            try {
+                const { error } = await supabaseClient
+                    .from(TABLE_NAME)
+                    .insert([
+                        { 
+                            name: name.toUpperCase(), 
+                            score: score, 
+                            gamename: GAME_NAME 
+                        }
+                    ]);
 
-        // === AUDIO (one-liner) ===
-        const audio = (url, vol=0.4) => {
-          const a = new Audio(url); a.volume = vol; return () => { a.currentTime=0; a.play().catch(()=>{}); };
-        };
-        const sfx = {
-          jump: audio('https://assets.codepen.io/605876/jump.mp3'),
-          fart: audio('https://assets.codepen.io/605876/fart.mp3', 0.6), 
-          vomit: audio('https://assets.codepen.io/605876/hit.mp3'),
-          hit: audio('https://assets.codepen.io/605876/explode.mp3')
-        };
-
-        // === INPUT ===
-        const jump = () => { if (player.jumps < 2) { player.vy = JUMP; player.jumps++; player.onGround = false; sfx.jump(); if (player.jumps===2 && Math.random()<0.15) sfx.fart(); }};
-        const vomit = () => { 
-          if (player.charges > 0) { 
-            player.charges--; 
-            sfx.vomit(); 
-            shots.push({x:player.x+player.w, y:player.y+30, vx:20}); 
-            // Start the reload timer if the last charge was used.
-            if(player.charges === 1 && player.reloading === 0) player.reloading = 600;
-            if(player.charges === 0) player.reloading = 600; 
-          }
-        };
-        c.addEventListener('pointerdown', e => {
-          const rect = c.getBoundingClientRect();
-          if (e.clientY - rect.top < rect.height/2) {
-            jump();
-          } else {
-            vomit();
-          }
-        });
-        onkeydown = e => { if(e.code==='Space') jump(); if(e.key==='ArrowDown') vomit(); };
-
-        // === PARTICLES ===
-        const particle = (x,y,c) => parts.push({x,y,vx:(Math.random()-0.5)*10, vy:(Math.random()-0.5)*10-5, c, life:60});
-
-        // === GAME LOOP ===
-        const resize = () => { w = c.width = c.clientWidth * devicePixelRatio; h = c.height = c.clientHeight * devicePixelRatio; };
-        
-        const loop = () => {
-          ctx.fillStyle = '#000033';
-          ctx.fillRect(0,0,w,h);
-
-          // background toilets
-          const off = (frame*SPEED)%200;
-          for(let x=-off; x<w+200; x+=200) {
-            for(let y=0; y<h-GROUND; y+=200) {
-              if(toiletImg.complete && toiletImg.naturalHeight !== 0) {
-                ctx.drawImage(toiletImg, x, y, 180, 180);
-              }
+                if (error) {
+                    console.error('Supabase insert error:', error);
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                console.error('Save score exception:', e);
+                return false;
             }
-          }
+        }
 
-          // ground
-          ctx.fillStyle = '#654321';
-          ctx.fillRect(0, h-GROUND, w, GROUND);
+        /**
+         * Function to fetch the top 10 scores from the Supabase Highscores table.
+         */
+        async function fetchLeaderboard() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from(TABLE_NAME)
+                    .select('name, score')
+                    .eq('gamename', GAME_NAME) // Filter for this specific game
+                    .order('score', { ascending: false }) // Sort by score, highest first
+                    .limit(10);
 
-          // player physics
-          if (!player.onGround) player.vy += G;
-          player.y = Math.min(h - GROUND - player.h, player.y + player.vy);
-          if (player.y >= h - GROUND - player.h) { 
-            player.y = h - GROUND - player.h; 
-            player.vy = 0; 
-            player.onGround = true; 
-            player.jumps = 0; 
-          }
+                if (error) {
+                    console.error('Supabase fetch error:', error);
+                    return [];
+                }
+                return data || [];
+            } catch (e) {
+                console.error('Fetch leaderboard exception:', e);
+                return [];
+            }
+        }
 
-          // vomit shots
-          shots = shots.filter(s => {
-            s.x += s.vx; ctx.fillStyle = '#0f0'; ctx.fillRect(s.x, s.y, 30, 12); return s.x < w; 
-          });
 
-          // camels
-          if (frame % 90 === 0) camels.push({x:w, y:h-GROUND-100, vx: SPEED+5+Math.random()*6, hp:3});
-          
-          for(let i = camels.length - 1; i >= 0; i--) {
-            const c = camels[i];
+        // --- GAME ENGINE ---
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        
+        ctx.imageSmoothingEnabled = false;
+        
+        let width, height;
+        
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            ctx.imageSmoothingEnabled = false; 
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- AUDIO SYSTEM (Web Audio API for SFX, HTML Audio for BGM) ---
+        let audioCtx;
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) {
+            console.warn("AudioContext not supported or blocked");
+        }
+        
+        const playSound = (type) => {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume().catch(e => console.log(e));
             
-            c.x -= c.vx;
-            // draw camel 
-            ctx.fillStyle = '#d2b48c';
-            ctx.fillRect(c.x+20, c.y+20, 100, 70);
-            ctx.fillStyle = '#b8860b';
-            ctx.fillRect(c.x+40, c.y, 30, 40);
-            ctx.fillRect(c.x+70, c.y+5, 35, 35);
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
 
-            // collision with vomit
-            shots = shots.filter(s => {
-              if (s.x + 30 > c.x && s.x < c.x + 120 && s.y + 12 > c.y + 20 && s.y < c.y + 90) {
-                c.hp--; sfx.hit(); for(let k=0;k<20;k++) particle(s.x,s.y,'#0f0');
-                player.score += 15; return false; 
-              } 
-              return true; 
+            const now = audioCtx.currentTime;
+
+            if (type === 'jump') {
+                // "Fart" sound
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'doubleJump') {
+                // "Puff" sound
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.linearRampToValueAtTime(600, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'death') {
+                // Scream/Crash
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
+                
+                const lfo = audioCtx.createOscillator();
+                lfo.frequency.value = 50;
+                const lfoGain = audioCtx.createGain();
+                lfoGain.gain.value = 500;
+                lfo.connect(lfoGain);
+                lfoGain.connect(osc.frequency);
+                lfo.start(now);
+                lfo.stop(now + 1.0);
+
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.linearRampToValueAtTime(0, now + 1.0);
+                osc.start(now);
+                osc.stop(now + 1.0);
+            }
+        };
+
+        // --- ASSET GENERATION (Procedural Pixel Art) ---
+        
+        function createPixelSprite(pixelMap, colorMap, pixelSize = 4) {
+            const h = pixelMap.length;
+            const w = pixelMap[0].length;
+            const c = document.createElement('canvas');
+            c.width = w * pixelSize;
+            c.height = h * pixelSize;
+            const xCtx = c.getContext('2d');
+            
+            for(let y=0; y<h; y++) {
+                for(let x=0; x<w; x++) {
+                    const char = pixelMap[y][x];
+                    if(char !== ' ' && colorMap[char]) {
+                        xCtx.fillStyle = colorMap[char];
+                        xCtx.fillRect(x*pixelSize, y*pixelSize, pixelSize, pixelSize);
+                    }
+                }
+            }
+            return c;
+        }
+
+        // Color map updated for cheese
+        const C = {
+            R: '#cc0000', // Red Shirt
+            B: '#2244aa', // Blue Jeans
+            S: '#ffccaa', // Skin
+            H: '#442200', // Hair/Shoes
+            W: '#ffffff', // White
+            G: '#888888', // Grey
+            D: '#553311', // Dark Brown (Wood)
+            L: '#885522', // Light Brown (Wood)
+            K: '#000000', // Black outline
+            Y: '#ffff00', // Yellow Cheese
+            O: '#ff8800'  // Orange rind/holes
+        };
+
+        const terryMap = [
+            "  HHH     ",
+            " HSSSS    ",
+            " HSSHS    ",
+            "  SSSS    ",
+            "  RRRRR   ",
+            " SRRRRRR  ", // Belly bulge
+            " SRRRRRR  ",
+            " SBBBB    ",
+            "  BBBB    ",
+            "  B  B    ",
+            "  B  B    ",
+            " HH  HH   "
+        ];
+        
+        const toiletMap = [
+            "    WW    ",
+            "   WWWWG  ",
+            "   WWWWG  ",
+            "  WWWWWW  ",
+            " WWWWWWWW ",
+            " WW    WW ",
+            "  WW  WW  ",
+            "  WWWWWW  "
+        ];
+
+        const blockMap = [
+            "DDDDDDDD",
+            "DLLLLLLD",
+            "DL DDDLD",
+            "DL DDDLD",
+            "DLDDD LD",
+            "DLDDD LD",
+            "DLLLLLLD",
+            "DDDDDDDD"
+        ];
+        
+        const cheeseMap = [
+            "YYYYYYY ",
+            "Y O Y OY",
+            "YYYYYYYY",
+            "OY Y Y O",
+            "YYYYYYYY",
+            "Y O Y OY",
+            " YYYYYY "
+        ];
+
+        // Sprites object updated with new cheese sprite
+        const sprites = {
+            terry: createPixelSprite(terryMap, C, 4),   // 40x48 px
+            toilet: createPixelSprite(toiletMap, C, 6), // 60x48 px
+            block: createPixelSprite(blockMap, C, 6),    // 48x48 px
+            cheese: createPixelSprite(cheeseMap, C, 6)   // 42x42 px
+        };
+
+        // --- GAME LOGIC ---
+
+        const STATE = { MENU: 0, PLAY: 1, DEAD: 2 };
+        let gameState = STATE.MENU;
+        let score = 0;
+        let gameSpeed = 400; 
+        let timeSinceStart = 0;
+        let lastTime = 0;
+        
+        // Background constants for seamless looping
+        const MOUNTAIN_WIDTH = 400; 
+        const TREE_CLUSTER_WIDTH = 600;
+
+        // Player
+        const player = {
+            x: 100,
+            y: 0,
+            width: 40,
+            height: 48,
+            vy: 0,
+            grounded: false,
+            jumpForce: -650,
+            doubleJumpForce: -500,
+            gravity: 2000,
+            jumps: 0,
+            cooldown: 100, // Now 0-100 refill timer
+            maxCooldown: 100,
+        };
+
+        let obstacles = [];
+        let particles = [];
+        let screenShake = 0;
+
+        function resetGame() {
+            player.y = height - 100 - player.height;
+            player.vy = 0;
+            player.cooldown = 100;
+            player.jumps = 0;
+            
+            obstacles = [];
+            particles = [];
+            
+            score = 0;
+            gameSpeed = 400;
+            timeSinceStart = 0;
+            
+            document.getElementById('score-display').innerText = `SCORE: 0`;
+            document.getElementById('speed-display').innerText = `SPD: 100%`;
+            updateStaminaUI();
+        }
+
+        // Obstacle spawning updated to include speedFactor
+        function spawnObstacle() {
+            const obstacleTypes = ['block', 'toilet', 'cheese', 'highBarrier'];
+            const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+            
+            let obs = {
+                x: width + 50,
+                y: 0, 
+                width: 0, 
+                height: 0,
+                type: type,
+                passed: false,
+                speedFactor: 1.0 // Default speed factor
+            };
+
+            const groundY = height - 100;
+            const blockHeight = 48; // Base height of a block/tile in px
+            const cheeseHeight = sprites.cheese.height;
+
+            if (type === 'block') {
+                obs.width = sprites.block.width;
+                obs.height = blockHeight;
+                // Random chance for a two-block stack
+                if (Math.random() > 0.7) {
+                    obs.height = blockHeight * 2;
+                    obs.y = groundY - obs.height;
+                } else {
+                    obs.y = groundY - obs.height;
+                }
+                obs.speedFactor = 0.9 + Math.random() * 0.1; // Slower (0.9 to 1.0)
+            } else if (type === 'toilet') {
+                obs.width = sprites.toilet.width;
+                obs.height = sprites.toilet.height; 
+                obs.y = groundY - obs.height;
+                obs.speedFactor = 1.0; // Base speed
+            } else if (type === 'cheese') {
+                obs.width = sprites.cheese.width;
+                obs.height = cheeseHeight; 
+                obs.y = groundY - obs.height;
+                obs.speedFactor = 1.2 + Math.random() * 0.2; // Faster (1.2 to 1.4)
+            } else if (type === 'highBarrier') {
+                // Tall barrier (3 blocks high) that REQUIRES a double jump to pass
+                obs.width = blockHeight; 
+                obs.height = blockHeight * 3;
+                obs.y = groundY - obs.height;
+                obs.speedFactor = 0.8; // Slowest, requires careful timing
+            }
+
+            obstacles.push(obs);
+        }
+
+        function createParticles(x, y, color, count) {
+            for(let i=0; i<count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 300,
+                    vy: (Math.random() - 0.5) * 300,
+                    life: 0.5,
+                    color: color
+                });
+            }
+        }
+
+        function update(dt) {
+            if (gameState !== STATE.PLAY) return;
+
+            timeSinceStart += dt;
+            
+            const speedMultiplier = 1 + Math.floor(timeSinceStart / 5) * 0.05;
+            const currentSpeed = gameSpeed * speedMultiplier;
+            
+            score += (currentSpeed * dt) / 10;
+            document.getElementById('score-display').innerText = `SCORE: ${Math.floor(score)}`;
+            document.getElementById('speed-display').innerText = `SPD: ${Math.floor(speedMultiplier * 100)}%`;
+
+            // Cooldown Refill
+            if (player.cooldown < player.maxCooldown) {
+                player.cooldown += 40 * dt; // Refills in ~2.5 seconds
+                if(player.cooldown > player.maxCooldown) player.cooldown = player.maxCooldown;
+                updateStaminaUI();
+            }
+
+            // Physics
+            player.vy += player.gravity * dt;
+            player.y += player.vy * dt;
+
+            // Ground collision
+            const groundY = height - 100;
+            if (player.y + player.height > groundY) {
+                player.y = groundY - player.height;
+                player.vy = 0;
+                player.grounded = true;
+                player.jumps = 0;
+            } else {
+                player.grounded = false;
+            }
+
+            // Obstacles - Increased randomness and frequency
+            const spawnDistance = 150 + Math.random() * 150; // Tighter spawn range
+            let lastObsX = obstacles.length > 0 ? obstacles[obstacles.length-1].x : width;
+            
+            // Increased spawn chance
+            if (width - lastObsX > spawnDistance) {
+                if (Math.random() < 0.08) spawnObstacle(); 
+            }
+            if (obstacles.length === 0) spawnObstacle();
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let ob = obstacles[i];
+                
+                // --- Use individual speed factor for movement ---
+                ob.x -= currentSpeed * ob.speedFactor * dt; 
+                // --------------------------------------------------
+
+                // Collision Detection
+                // Using 10px buffer on player sides
+                if (
+                    player.x < ob.x + ob.width - 10 &&
+                    player.x + player.width - 10 > ob.x &&
+                    player.y < ob.y + ob.height &&
+                    player.y + player.height > ob.y + 10 
+                ) {
+                    die();
+                }
+
+                if (ob.x + ob.width < 0) {
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.life -= dt;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function die() {
+            gameState = STATE.DEAD;
+            playSound('death');
+            
+            // Stop Music
+            const bgm = document.getElementById('bgm');
+            if(bgm) {
+                bgm.pause();
+                bgm.currentTime = 0;
+            }
+
+            screenShake = 0.5; 
+            document.getElementById('final-score').innerText = `SCORE: ${Math.floor(score)}`;
+            document.getElementById('game-over-screen').classList.remove('hidden');
+            document.getElementById('high-score-form').classList.remove('hidden');
+            document.getElementById('leaderboard-container').classList.add('hidden');
+
+            // --- Reset the submit button state here ---
+            const submitBtn = document.getElementById('submit-score-btn');
+            submitBtn.disabled = false;
+            submitBtn.innerText = "SUBMIT";
+            // --------------------------------------------------
+        }
+
+        function jump() {
+            if (gameState !== STATE.PLAY) return;
+
+            if (player.grounded) {
+                player.vy = player.jumpForce;
+                player.jumps = 1;
+                player.grounded = false;
+                playSound('jump');
+                createParticles(player.x + player.width/2, player.y + player.height, '#fff', 5);
+            } else if (player.jumps === 1 && player.cooldown >= player.maxCooldown) {
+                // Double jump ONLY if cooldown is full
+                player.vy = player.doubleJumpForce;
+                player.jumps = 2;
+                player.cooldown = 0; // Empty bar completely
+                updateStaminaUI();
+                playSound('doubleJump');
+                createParticles(player.x + player.width/2, player.y + player.height, '#00ff00', 10);
+            }
+        }
+
+        function updateStaminaUI() {
+            const bar = document.getElementById('jump-meter-fill');
+            bar.style.width = `${player.cooldown}%`;
+            // Red when empty/filling, Green when ready
+            bar.style.backgroundColor = player.cooldown >= player.maxCooldown ? '#00ff00' : '#ff0000';
+        }
+
+        // --- BACKGROUND RENDERING UTILS ---
+        
+        // Helper function for drawing seamless, repeating background elements
+        function drawRepeatingBackground(drawFunc, speed, tileWidth, floorY) {
+            const offset = (timeSinceStart * speed) % tileWidth;
+            let x = -offset;
+            // Draw tiles until the screen is covered
+            while (x < width) {
+                drawFunc(ctx, x, floorY);
+                x += tileWidth;
+            }
+        }
+
+        // Draw a single mountain tile
+        function drawVoxelMountain(c, x, floorY) {
+            c.fillStyle = '#551A8B'; 
+            const size = 40;
+            for (let r = 0; r < 5; r++) {
+                for (let cx = 0; cx <= r; cx++) {
+                    let px = x + 200 + (cx * size) - (r * size / 2);
+                    let py = floorY - 200 + (r * size);
+                    c.fillRect(px, py, size, size);
+                }
+            }
+        }
+
+        // Draw a single tree cluster tile
+        function drawVoxelTree(c, x, floorY) {
+            // Tree 1
+            c.fillStyle = '#553311';
+            c.fillRect(x + 50, floorY - 60, 20, 60);
+            c.fillStyle = '#228822';
+            c.fillRect(x + 20, floorY - 100, 80, 40); 
+            c.fillRect(x + 40, floorY - 130, 40, 30); 
+            
+            // Tree 2 (further back)
+            c.fillStyle = '#553311';
+            c.fillRect(x + 300, floorY - 40, 15, 40);
+            c.fillStyle = '#228822';
+            c.fillRect(x + 270, floorY - 80, 60, 30); 
+            c.fillRect(x + 285, floorY - 100, 30, 20); 
+        }
+
+        // --- RENDER ---
+
+        function draw() {
+            // Screen Shake must be applied before drawing starts
+            if (screenShake > 0) {
+                const shakeX = (Math.random() - 0.5) * 20;
+                const shakeY = (Math.random() - 0.5) * 20;
+                canvas.style.transform = `translate(${shakeX}px, ${shakeY}px)`;
+            } else {
+                canvas.style.transform = `none`;
+            }
+
+            // Sky
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Mountains (Fixed glitchy background by using drawRepeatingBackground)
+            drawRepeatingBackground(drawVoxelMountain, 20, MOUNTAIN_WIDTH, height - 100);
+
+            // Trees (Fixed glitchy background by using drawRepeatingBackground)
+            drawRepeatingBackground(drawVoxelTree, 150, TREE_CLUSTER_WIDTH, height - 100);
+
+            // Ground
+            ctx.fillStyle = '#44aa44';
+            ctx.fillRect(0, height - 100, width, 100);
+            ctx.fillStyle = '#553311';
+            ctx.fillRect(0, height - 80, width, 80);
+
+            // Obstacles
+            obstacles.forEach(ob => {
+                if (ob.type === 'block' || ob.type === 'highBarrier') {
+                    // Draw multiple blocks for tall structures (highBarrier)
+                    const blockSprite = sprites.block;
+                    let currentY = ob.y;
+                    while (currentY < ob.y + ob.height) {
+                        ctx.drawImage(blockSprite, ob.x, currentY);
+                        currentY += blockSprite.height;
+                    }
+                } else if (ob.type === 'toilet') {
+                    ctx.drawImage(sprites.toilet, ob.x, ob.y);
+                } else if (ob.type === 'cheese') {
+                    ctx.drawImage(sprites.cheese, ob.x, ob.y);
+                }
             });
 
-            if (c.hp <= 0) { 
-              player.score += 100; 
-              for(let k=0;k<60;k++) particle(c.x+60,c.y+40,'#0f0'); 
-              camels.splice(i,1); 
-              continue; 
-            } 
+            // Player
+            let bob = 0;
+            if (gameState === STATE.PLAY && player.grounded) {
+                bob = Math.sin(timeSinceStart * 20) * 2;
+            }
             
-            // Player collision with camel
-            if (c.x < player.x+player.w && c.x+120 > player.x && player.y+player.h > c.y + 20 && player.y < c.y + 90) { endGame(); }
-          }; 
-
-          // draw player
-          ctx.save();
-          ctx.translate(player.x+player.w/2, player.y+player.h);
-          ctx.scale(1, 0.9 + Math.abs(player.vy)/100);
-          ctx.fillStyle = '#ff69b4';
-          ctx.fillRect(-30, -90, 60, 90);
-          ctx.fillStyle = '#00ffff';
-          ctx.fillRect(-20, -70, 40, 60);
-          ctx.restore();
-
-          // particles
-          parts.forEach((p,i) => {
-            p.x += p.vx - SPEED; p.y += p.vy; p.vy += 0.5; p.life--;
-            ctx.fillStyle = p.c; ctx.globalAlpha = p.life/60;
-            ctx.fillRect(p.x, p.y, 8, 8);
-            if (p.life<=0) parts.splice(i,1);
-          });
-          ctx.globalAlpha = 1;
-
-          // UI and Reload
-          document.getElementById('score').textContent = player.score;
-          document.getElementById('charges').textContent = `VOMIT ${player.charges}/2`; 
-          
-          if (player.reloading > 0) {
-            player.reloading--;
-            document.getElementById('reload-fill').style.width = (1 - player.reloading/600)*100 + '%';
-            if (player.reloading === 0 && player.charges < 2) {
-              player.charges = 2; 
+            ctx.save();
+            ctx.translate(player.x + player.width/2, player.y + player.height/2);
+            if (!player.grounded) {
+                ctx.rotate(Math.min(Math.PI/4, player.vy * 0.001));
             }
-          } else {
-            if (player.charges === 2) {
-              document.getElementById('reload-fill').style.width = '0%';
-            }
-          }
-          
-          frame++;
-          if (running) requestAnimationFrame(loop);
-        };
+            ctx.drawImage(sprites.terry, -player.width/2, -player.height/2 + bob);
+            ctx.restore();
 
-        // === SCREENS ===
-        let running = false;
-        const start = () => {
-          running = true;
-          player.score = 0; player.charges = 2; player.reloading = 0; 
-          // Ensure player starts on the ground
-          resize(); 
-          player.y = h - GROUND - player.h; 
-          player.vy = 0; player.onGround = true; player.jumps = 0;
-          camels = []; shots = []; parts = [];
-          document.getElementById('start').classList.remove('active');
-          document.getElementById('over').classList.remove('active'); 
-          loop();
-        };
-        const endGame = async () => {
-          running = false;
-          document.getElementById('final').textContent = player.score;
-          await saveScore(player.score);
-          document.getElementById('over').classList.add('active');
-        };
+            // Particles
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 4, 4);
+            });
+        }
 
-        // === HIGHSCORES===
-        const saveScore = async (score) => {
-          try {
-            const { data } = await supabase.from('terry_scores').select('score').eq('user_id', userId).single();
-            if (!data || score > data.score) {
-              await supabase.from('terry_scores').upsert({ user_id: userId, score });
-            }
-            loadScores();
-          } catch (e) { console.error("Error saving score:", e); }
-        };
-        const loadScores = async () => {
-          const list = document.getElementById('list');
-          try {
-            const { data } = await supabase.from('terry_scores').select('score,user_id').order('score', {ascending:false}).limit(10);
-            list.innerHTML = data?.length ? data.map((r,i)=>`<div>#${i+1} ${r.user_id.slice(0,8)}... ${r.score}</div>`).join('') : 'No scores yet';
-            const best = data?.find(r=>r.user_id===userId)?.score || 0;
-            document.getElementById('best').textContent = Math.max(best, player.score);
-          } catch (e) { console.error("Error loading scores:", e); list.innerHTML = 'Error loading scores.'; }
-        };
+        function loop(timestamp) {
+            let dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+            if (dt > 0.1) dt = 0.1; 
 
-        // === BUTTONS ===
-        document.getElementById('play').onclick = start;
-        document.getElementById('again').onclick = start;
-        document.getElementById('menu').onclick = () => { document.getElementById('over').classList.remove('active'); document.getElementById('start').classList.add('active'); };
-        document.getElementById('scoresBtn').onclick = () => { document.getElementById('scoreboard').style.display = 'block'; loadScores(); };
+            if (screenShake > 0) screenShake -= dt;
 
-        // === STARTUP ===
-        const toiletImg = new Image(); 
-        toiletImg.onerror = () => { console.warn("Could not load toilet image. Background draw will be skipped."); };
-        // NOTE: This image URL is a placeholder. You should replace it with your own asset or a valid base64 URI.
-        toiletImg.src = 'https://assets.codepen.io/605876/toilet-placeholder.svg'; 
+            update(dt);
+            draw();
+            requestAnimationFrame(loop);
+        }
 
-        resize(); 
-        window.onresize = () => { 
-          resize(); 
-          player.y = h - GROUND - player.h;
-        };
+        // --- INPUTS ---
         
-        // Initial grounding of the player.
-        player.y = h - GROUND - player.h;
+        function handleInput(e) {
+            // Prevent default touch/click behavior if it wasn't on a UI element
+            if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+                 if (e.type === 'touchstart') e.preventDefault();
+            }
+            
+            if (gameState === STATE.PLAY) {
+                jump();
+            }
+        }
+
+        const startBtn = document.getElementById('start-btn');
+        if(startBtn) startBtn.addEventListener('click', startGame);
+
+        const restartBtn = document.getElementById('restart-btn');
+        if(restartBtn) restartBtn.addEventListener('click', () => {
+             document.getElementById('game-over-screen').classList.add('hidden');
+             startGame();
+        });
+
+        const submitBtn = document.getElementById('submit-score-btn');
+        if(submitBtn) submitBtn.addEventListener('click', submitScore);
         
-        loadScores();
-      })(); 
+        // Use document for general input handling when game is active
+        window.addEventListener('mousedown', (e) => {
+            // Only respond to clicks outside of the menu buttons/inputs
+            if (gameState === STATE.PLAY) {
+                handleInput(e);
+            }
+        });
+        window.addEventListener('touchstart', (e) => {
+            // Only respond to touches outside of the menu buttons/inputs
+            if (gameState === STATE.PLAY) {
+                 handleInput(e);
+            }
+        }, {passive: false});
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            gameState = STATE.PLAY;
+            resetGame();
+            
+            // Resume/Start AudioContext on first user interaction
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(e => {});
+            
+            // Start Music
+            const bgm = document.getElementById('bgm');
+            if(bgm) {
+                bgm.currentTime = 0;
+                bgm.play().catch(e => console.log("Music play blocked:", e));
+            }
+        }
+
+        // Updated submitScore to use Promise.race for a 5-second timeout
+        async function submitScore() {
+            const name = document.getElementById('player-name').value.trim() || "UNK";
+            const btn = document.getElementById('submit-score-btn');
+            
+            btn.disabled = true;
+            btn.innerText = "SAVING...";
+
+            // Create a promise that resolves to 'false' after 5 seconds (the timeout)
+            const timeoutPromise = new Promise(resolve => 
+                setTimeout(() => resolve(false), 5000)
+            );
+            
+            let success = false;
+            try {
+                // Race the score submission against the timeout
+                const scorePromise = saveScore(name, Math.floor(score));
+                success = await Promise.race([scorePromise, timeoutPromise]);
+            } catch (e) {
+                // If there's an unexpected error during the submission process
+                console.error("Submission promise failed:", e);
+                success = false;
+            }
+            
+            if (success) {
+                document.getElementById('high-score-form').classList.add('hidden');
+                document.getElementById('leaderboard-container').classList.remove('hidden');
+                refreshLeaderboard();
+            } else {
+                 btn.innerText = "FAILED! TRY AGAIN";
+                 btn.disabled = false;
+            }
+        }
+
+        async function refreshLeaderboard() {
+            const tbody = document.getElementById('leaderboard-body');
+            tbody.innerHTML = '<tr><td colspan="2">LOADING...</td></tr>';
+            
+            // This waits for your Supabase fetch to complete
+            const scores = await fetchLeaderboard(); 
+            tbody.innerHTML = '';
+            
+            scores.forEach((s, index) => {
+                const tr = document.createElement('tr');
+                // Highlight the top score
+                if (index === 0) tr.style.color = '#ffff00'; 
+                tr.innerHTML = `<td>${s.name}</td><td>${s.score}</td>`;
+                tbody.appendChild(tr);
+            });
+            
+            if (scores.length === 0) {
+                 tbody.innerHTML = '<tr><td colspan="2">NO SCORES YET</td></tr>';
+            }
+        }
+
+        // Initialize the game loop
+        lastTime = performance.now();
+        requestAnimationFrame(loop);
+
+        // Populate the mock leaderboard on load
+        refreshLeaderboard();
     </script>
-  </body>
+</body>
 </html>
