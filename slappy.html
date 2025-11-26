@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Slappy Turd: Fire Edition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        :root {
+            --bg-color: #222;
+            --phone-bezel: #111;
+            --ui-font: 'Press Start 2P', cursive;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: var(--ui-font);
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        /* PHONE SIMULATION CONTAINER */
+        #phone-frame {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 450px;
+            max-height: 900px;
+            background: #000;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        @media (min-width: 500px) {
+            #phone-frame {
+                border-radius: 40px;
+                border: 12px solid var(--phone-bezel);
+                height: 90vh;
+            }
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        /* UI LAYERS */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .hud-top {
+            position: absolute;
+            top: 40px;
+            left: 20px;
+            color: #ffffff;
+            text-shadow: 3px 3px 0 #000;
+            font-size: 20px;
+            z-index: 10;
+        }
+
+        .control-hint {
+            position: absolute;
+            bottom: 80px; /* Moved up to avoid fire */
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 10px;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* SCREENS */
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(86, 60, 36, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 100;
+            backdrop-filter: blur(4px);
+        }
+
+        h1 {
+            color: #ffcc00;
+            text-shadow: 4px 4px 0 #5c3a1e;
+            font-size: 42px;
+            text-align: center;
+            line-height: 1.2;
+            margin: 0 0 20px 0;
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: #ddd;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.6;
+            max-width: 80%;
+        }
+
+        .btn {
+            background: #ff4444;
+            border: 4px solid #fff;
+            color: #fff;
+            padding: 20px 30px;
+            font-family: var(--ui-font);
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #990000;
+            transition: transform 0.1s;
+            text-transform: uppercase;
+            margin-top: 20px;
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #990000;
+        }
+
+        .hidden { display: none !important; }
+
+        /* VIGNETTE */
+        .scanlines {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        #high-score-list {
+            color: #fff; 
+            margin: 10px 0; 
+            font-size: 10px; 
+            text-align: left; 
+            max-width: 85%; 
+            width: 280px;
+            background: rgba(0,0,0,0.5);
+            border: 2px solid #ffcc00;
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+        }
+        #high-score-list ol {
+            padding-left: 20px; 
+            list-style-type: none;
+            margin: 0;
+        }
+        #high-score-list li {
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed #555;
+            padding-bottom: 2px;
+        }
+        
+        .float-text {
+            position: absolute;
+            color: yellow;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
+            pointer-events: none;
+            animation: floatUp 1s forwards;
+            font-size: 20px;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.2); opacity: 0; }
+        }
+
+        .split-divider {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: rgba(255,255,255,0.1);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="phone-frame">
+    <canvas id="gameCanvas"></canvas>
+    <div class="scanlines"></div>
+    <div class="split-divider"></div>
+
+    <div id="ui-layer">
+        <div class="hud-top">
+            SCORE: <span id="score-display">0</span>
+        </div>
+        <div class="control-hint">
+            &larr; TAP LEFT | TAP RIGHT &rarr;
+            <br><span style="color:#ff4444;">DON'T TOUCH THE FIRE!</span>
+        </div>
+        <div id="effects-container"></div>
+    </div>
+
+    <div id="start-screen">
+        <div style="font-size:60px; margin-bottom:10px;">💩🔥</div>
+        <h1>SLAPPY<br>TURD</h1>
+        <p class="subtitle">TAP LEFT to go Left<br>TAP RIGHT to go Right<br>The floor is FIRE!</p>
+        
+        <div id="high-score-list">Loading Scores...</div>
+
+        <button class="btn" id="start-btn">PLAY</button>
+    </div>
+
+    <div id="game-over-screen" class="hidden">
+        <h1 style="color: #ff4444;">GAME OVER!</h1>
+        <p class="subtitle" id="death-msg">You burned.</p>
+        <p class="subtitle" style="font-size: 16px;">SCORE: <span id="final-score">0</span></p>
+        <button class="btn" id="restart-btn">RETRY</button>
+    </div>
+</div>
+
+<script type="importmap">
+    {
+        "imports": {
+            "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
+        }
+    }
+</script>
+
+<script type="module">
+    import { createClient } from '@supabase/supabase-js';
+
+    // SUPABASE CONFIG
+    const SUPABASE_URL = 'https://xybyjldasdstkvpagmdk.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'sb_publishable_5_B_Oh3Pcr-dppdUoxpGeg_oqRYKlCK';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- HIGH SCORE SYSTEM ---
+    const HighScoreSys = {
+        SCORE_TABLE: 'Highscores',
+        GAME_ID: 'SLAPPY_TURD',
+        MAX_SCORES: 10,
+        
+        loadScores: async function() {
+            try {
+                let { data: scores, error } = await supabase
+                    .from(this.SCORE_TABLE)
+                    .select('name, score')
+                    .eq('gamename', this.GAME_ID)
+                    .order('score', { ascending: false })
+                    .limit(this.MAX_SCORES);
+                if (error) throw error;
+                return scores || [];
+            } catch (e) {
+                console.error("Supabase Error:", e);
+                return []; 
+            }
+        },
+        
+        checkAndSaveScore: async function(name, score) {
+            const scores = await this.loadScores();
+            const scoreInt = Math.floor(score);
+            const qualifies = scores.length < this.MAX_SCORES || scoreInt > (scores.length > 0 ? scores[scores.length - 1].score : -1);
+
+            if (qualifies) {
+                const newScoreData = { 
+                    name: name.trim().substring(0, 15).toUpperCase(), 
+                    score: scoreInt,
+                    gamename: this.GAME_ID 
+                };
+                await supabase.from(this.SCORE_TABLE).insert([newScoreData]);
+                this.displayScores();
+            }
+        },
+        
+        displayScores: async function() {
+            const scores = await this.loadScores();
+            const listEl = document.getElementById('high-score-list');
+            let html = `<strong>🏆 GLOBAL TOP 10</strong><ol>`;
+            if (scores.length === 0) html += '<li>No scores yet.</li>';
+            else scores.forEach((s, index) => html += `<li><span>${(index + 1)}. ${s.name}</span><span>${s.score}</span></li>`);
+            html += '</ol>';
+            listEl.innerHTML = html;
+        }
+    };
+
+    // GAME ENGINE
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // PALETTE & SPRITES
+    const PALETTE = { 0: null, 1: '#4A3321', 2: '#6D4C31', 3: '#FFFFFF', 4: '#000000', 5: '#EAC0B5', 6: '#D68A85', 7: '#FF0000' };
+
+    const SPRITE_TURD = [
+        [0,0,0,0,0,1,1,0,0,0,0,0],
+        [0,0,0,0,1,2,2,1,0,0,0,0],
+        [0,0,0,1,2,2,2,2,1,0,0,0],
+        [0,0,1,2,2,1,1,2,2,1,0,0],
+        [0,1,2,2,1,2,2,1,2,2,1,0],
+        [1,2,2,2,2,2,2,2,2,2,2,1],
+        [1,2,2,3,3,2,2,3,3,2,2,1],
+        [1,2,2,3,4,2,2,3,4,2,2,1],
+        [1,2,2,2,2,2,2,2,2,2,2,1],
+        [1,2,2,2,2,4,4,2,2,2,2,1],
+        [0,1,2,2,4,7,7,4,2,2,1,0],
+        [0,0,1,1,1,1,1,1,1,1,0,0]
+    ];
+
+    const SPRITE_HAND = [
+        [0,0,0,6,5,5,0,0,0,6,5,5,0,0,0,0],
+        [0,0,0,6,5,5,0,0,0,6,5,5,0,0,0,0],
+        [0,0,0,6,5,5,0,0,0,6,5,5,0,6,5,5],
+        [0,0,0,6,5,5,0,0,0,6,5,5,0,6,5,5],
+        [6,5,5,6,5,5,0,0,0,6,5,5,0,6,5,5],
+        [6,5,5,6,5,5,6,5,5,6,5,5,0,6,5,5],
+        [6,5,5,6,5,5,6,5,5,6,5,5,0,6,5,5],
+        [6,5,5,6,5,5,6,5,5,6,5,5,0,6,5,5],
+        [0,6,5,5,5,5,5,5,5,5,5,5,5,5,5,0],
+        [0,0,6,5,5,5,5,5,5,5,5,5,5,5,0,0],
+        [0,0,0,6,5,5,5,5,5,5,5,5,5,0,0,0],
+        [0,0,0,0,6,5,5,5,5,5,5,5,0,0,0,0],
+        [0,0,0,0,6,5,5,5,5,5,5,0,0,0,0,0],
+        [0,0,0,0,6,5,5,5,5,5,5,0,0,0,0,0],
+        [0,0,0,0,6,5,5,5,5,5,5,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ];
+
+    let turdCanvas, handCanvas;
+
+    function renderSpriteToCanvas(matrix, scale) {
+        const c = document.createElement('canvas');
+        c.width = matrix[0].length * scale;
+        c.height = matrix.length * scale;
+        const cx = c.getContext('2d');
+        for(let y=0; y<matrix.length; y++) {
+            for(let x=0; x<matrix[y].length; x++) {
+                if(matrix[y][x] !== 0) {
+                    cx.fillStyle = PALETTE[matrix[y][x]];
+                    cx.fillRect(x*scale, y*scale, scale, scale);
+                }
+            }
+        }
+        return c;
+    }
+
+    // --- AUDIO SYSTEM ---
+    const AudioSys = {
+        ctx: null,
+        fartSound: null,
+        screamSound: null,
+        init: function() {
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+            this.fartSound = new Audio('fart.mp3');
+            this.screamSound = new Audio('scream.mp3');
+        },
+        playTone: function(freq, type, duration, vol=0.1) {
+            if (!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        },
+        playFart: function() {
+            if(this.fartSound) {
+                this.fartSound.currentTime = 0;
+                this.fartSound.play().catch(() => this.playTone(60, 'sawtooth', 0.5, 0.5));
+            }
+        },
+        playScream: function() {
+            // Try file first, then fallback to synth scream
+            if(this.screamSound) {
+                this.screamSound.currentTime = 0;
+                this.screamSound.play().catch(() => {
+                    // Fallback Synth Scream
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.6);
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.6);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.6);
+                });
+            }
+        },
+        sfxFlap: () => AudioSys.playTone(150, 'square', 0.1, 0.05),
+        sfxScore: () => AudioSys.playTone(600, 'sine', 0.2, 0.1)
+    };
+
+    // --- GAME STATE ---
+    let state = { running: false, score: 0, width: 0, height: 0, frames: 0 };
+    let player = { x: 50, y: 200, vx: 0, vy: 0, radius: 18, rot: 0 };
+    let hands = [];
+    let scrollSpeed = 2.5;
+
+    // --- PHYSICS CONSTANTS ---
+    const GRAVITY_Y = 0.4;    
+    const WIND_X = -0.15;     
+    const FLAP_X = 6.5;         
+    const FLAP_Y = -7;
+    const FIRE_HEIGHT = 60; // Height of the fire pit
+
+    function resize() {
+        const parent = document.getElementById('phone-frame');
+        canvas.width = parent.clientWidth;
+        canvas.height = parent.clientHeight;
+        state.width = canvas.width;
+        state.height = canvas.height;
+        const scale = Math.floor(state.width / 100); 
+        turdCanvas = renderSpriteToCanvas(SPRITE_TURD, Math.max(3, scale));
+        handCanvas = renderSpriteToCanvas(SPRITE_HAND, Math.max(3, scale * 1.5));
+    }
+
+    function initGame() {
+        resize();
+        state.score = 0;
+        scrollSpeed = 2.5;
+        player.x = state.width * 0.2;
+        player.y = state.height / 2;
+        player.vx = 0;
+        player.vy = 0;
+        player.rot = 0;
+        hands = [];
+        state.running = true;
+        state.frames = 0;
+        
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('game-over-screen').classList.add('hidden');
+        document.getElementById('score-display').innerText = "0";
+        document.getElementById('effects-container').innerHTML = '';
+
+        if (!AudioSys.ctx) AudioSys.init();
+        requestAnimationFrame(loop);
+    }
+
+    function spawnHand() {
+        // Hands only spawn above the fire line
+        const playableHeight = state.height - FIRE_HEIGHT;
+        const gapSize = Math.max(160, 220 - (state.score * 2));
+        const minGapY = gapSize / 2 + 50;
+        const maxGapY = playableHeight - gapSize / 2 - 20;
+        const gapCenter = Math.floor(Math.random() * (maxGapY - minGapY + 1)) + minGapY;
+
+        hands.push({
+            x: state.width, y: gapCenter - gapSize / 2 - handCanvas.height + 10, 
+            w: handCanvas.width, h: handCanvas.height, passed: false
+        });
+        hands.push({
+            x: state.width, y: gapCenter + gapSize / 2 - 10,
+            w: handCanvas.width, h: handCanvas.height, passed: false
+        });
+    }
+
+    function showFloatText(text) {
+        const div = document.createElement('div');
+        div.className = 'float-text';
+        div.innerText = text;
+        div.style.left = (state.width / 2 - 50) + 'px';
+        div.style.top = (state.height / 3) + 'px';
+        document.getElementById('effects-container').appendChild(div);
+        setTimeout(() => div.remove(), 1000);
+    }
+
+    function gameOver(reason) {
+        state.running = false;
+        
+        if (reason === 'fire') {
+            AudioSys.playScream();
+            document.getElementById('death-msg').innerText = "ROASTED TURD!";
+            document.getElementById('death-msg').style.color = "#FF4500";
+        } else {
+            AudioSys.playFart();
+            const msgs = ["SLAPPED!", "FLUSHED!", "SQUISHED!", "HANDLED!"];
+            document.getElementById('death-msg').innerText = msgs[Math.floor(Math.random()*msgs.length)];
+            document.getElementById('death-msg').style.color = "#ddd";
+        }
+
+        canvas.style.transform = `translate(${Math.random()*15-7}px, ${Math.random()*15-7}px)`;
+        setTimeout(() => canvas.style.transform = 'none', 300);
+
+        document.getElementById('final-score').innerText = state.score;
+        document.getElementById('game-over-screen').classList.remove('hidden');
+
+        HighScoreSys.loadScores().then(highScores => {
+            const qualifies = highScores.length < HighScoreSys.MAX_SCORES || state.score > (highScores.length > 0 ? highScores[highScores.length - 1].score : -1);
+            if (qualifies) {
+                const inputName = window.prompt(`NEW HIGH SCORE! Enter name (max 10 chars):`); 
+                HighScoreSys.checkAndSaveScore(inputName || "POO", state.score);
+            } else {
+                HighScoreSys.displayScores();
+            }
+        });
+    }
+
+    function update() {
+        state.frames++;
+        
+        // Physics
+        player.vy += GRAVITY_Y;
+        player.vx += WIND_X;
+        player.vx *= 0.95;
+
+        player.y += player.vy;
+        player.x += player.vx;
+        player.rot = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, (player.vy * 0.1)));
+
+        // Fire Floor Collision
+        const fireLine = state.height - FIRE_HEIGHT;
+        if (player.y + player.radius * 2 >= fireLine) { 
+            gameOver('fire');
+            return;
+        }
+        
+        // Ceiling
+        if (player.y <= 0) { 
+            player.y = 0;
+            player.vy = 0;
+        }
+
+        // Left/Right Walls
+        if (player.x + player.radius * 2 < 0) {
+            gameOver('wall');
+            return;
+        }
+        if (player.x > state.width - player.radius * 2) {
+            player.x = state.width - player.radius * 2;
+            player.vx = 0;
+        }
+
+        // Hands
+        if (state.frames % Math.floor(1000 / (scrollSpeed * 3)) === 0) spawnHand();
+
+        for (let i = hands.length - 1; i >= 0; i--) {
+            let h = hands[i];
+            h.x -= scrollSpeed;
+
+            const pW = turdCanvas.width * 0.7; 
+            const pH = turdCanvas.height * 0.7;
+            const pX = player.x + (turdCanvas.width - pW)/2;
+            const pY = player.y + (turdCanvas.height - pH)/2;
+
+            if (pX < h.x + h.w && pX + pW > h.x && pY < h.y + h.h && pY + pH > h.y) {
+                gameOver('slap');
+                return;
+            }
+
+            if (!h.passed && h.x + h.w < player.x) {
+                h.passed = true;
+                if (!(hands[i-1] && hands[i-1].x === h.x)) {
+                    state.score++;
+                    document.getElementById('score-display').innerText = state.score;
+                    AudioSys.sfxScore();
+                    if(state.score % 5 === 0) {
+                        scrollSpeed += 0.2;
+                        showFloatText("SPEED UP!");
+                    }
+                }
+            }
+            if (h.x + h.w < -50) hands.splice(i, 1);
+        }
+    }
+
+    function draw() {
+        // Draw Tiled Background
+        ctx.fillStyle = '#fce4ec';
+        ctx.fillRect(0, 0, state.width, state.height);
+        
+        ctx.strokeStyle = '#f8bbd0';
+        ctx.lineWidth = 2;
+        const tileSize = 40;
+        const offset = (state.frames * scrollSpeed * 0.5) % tileSize;
+        
+        ctx.beginPath();
+        for(let x = -offset; x < state.width; x += tileSize) {
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, state.height - FIRE_HEIGHT);
+        }
+        for(let y = 0; y < state.height - FIRE_HEIGHT; y += tileSize) {
+            ctx.moveTo(0, y);
+            ctx.lineTo(state.width, y);
+        }
+        ctx.stroke();
+
+        // Draw Hands
+        hands.forEach(h => {
+            ctx.drawImage(handCanvas, h.x, h.y);
+            ctx.fillStyle = '#EAC0B5';
+            if (h.x + h.w < state.width + 200) {
+                const armH = h.h * 0.4;
+                const armY = h.y + h.h * 0.3;
+                ctx.fillRect(h.x + h.w - 5, armY, state.width - h.x + 100, armH);
+            }
+        });
+
+        // Draw Player
+        ctx.save();
+        ctx.translate(player.x + turdCanvas.width/2, player.y + turdCanvas.height/2);
+        ctx.rotate(player.rot);
+        ctx.drawImage(turdCanvas, -turdCanvas.width/2, -turdCanvas.height/2);
+        ctx.restore();
+
+        // DRAW FIRE (Animated Voxel Style)
+        const fireBase = state.height - FIRE_HEIGHT;
+        const pixelSize = 10;
+        const cols = Math.ceil(state.width / pixelSize);
+        
+        for (let i = 0; i < cols; i++) {
+            const hVar = Math.sin((state.frames * 0.2) + i) * 10 + Math.random() * 10;
+            const x = i * pixelSize;
+            
+            // Outer Flame (Red)
+            ctx.fillStyle = '#FF4500';
+            ctx.fillRect(x, fireBase + hVar, pixelSize, FIRE_HEIGHT);
+            
+            // Inner Flame (Orange)
+            ctx.fillStyle = '#FF8C00';
+            ctx.fillRect(x + 2, fireBase + hVar + 10, pixelSize - 4, FIRE_HEIGHT);
+            
+            // Core (Yellow)
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(x + 3, fireBase + hVar + 25, pixelSize - 6, FIRE_HEIGHT);
+        }
+    }
+
+    function loop() {
+        if (state.running) {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+    }
+
+    function handleInput(e, type) {
+        if (!state.running) return;
+        if (e.type !== 'keydown') e.preventDefault();
+        
+        let moveLeft = false;
+        if (type === 'key') {
+            if (e.code === 'ArrowLeft') moveLeft = true;
+            else if (e.code === 'ArrowRight' || e.code === 'Space') moveLeft = false;
+            else return;
+        } else {
+            const rect = canvas.getBoundingClientRect();
+            let clientX = e.type.startsWith('touch') ? e.changedTouches[0].clientX : e.clientX;
+            if ((clientX - rect.left) < rect.width / 2) moveLeft = true;
+        }
+
+        player.vy = FLAP_Y;
+        player.vx = moveLeft ? -FLAP_X : FLAP_X;
+        AudioSys.sfxFlap();
+    }
+
+    window.addEventListener('keydown', (e) => handleInput(e, 'key'));
+    const frame = document.getElementById('phone-frame');
+    frame.addEventListener('mousedown', (e) => handleInput(e, 'mouse'));
+    frame.addEventListener('touchstart', (e) => handleInput(e, 'touch'), {passive: false});
+
+    window.addEventListener('resize', resize);
+    document.getElementById('start-btn').addEventListener('click', initGame);
+    document.getElementById('restart-btn').addEventListener('click', initGame);
+
+    HighScoreSys.displayScores();
+    setTimeout(resize, 100);
+
+</script>
+</body>
+</html>
