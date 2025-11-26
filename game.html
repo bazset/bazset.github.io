@@ -209,8 +209,7 @@
         <p style="color:#FFFF00; font-size:10px;">TIP: Collect LOTION for bonuses!</p>
         
         <div id="high-score-list">
-            <!-- Scores will be injected here -->
-        </div>
+            </div>
 
         <button class="btn" id="start-btn">TAP TO RUN</button>
     </div>
@@ -223,7 +222,6 @@
     </div>
 </div>
 
-<!-- Import Three.js and Supabase from CDN -->
 <script type="importmap">
     {
         "imports": {
@@ -251,8 +249,8 @@
     const CONFIG = {
         LANE_WIDTH: 2.5,
         LANES: [-2.5, 0, 2.5], 
-        SPEED_START: 18.0,
-        SPEED_MAX: 50.0,
+        SPEED_START: 36.0, // <-- INCREASED START SPEED (WAS 18.0)
+        SPEED_MAX: 450.0,
         GRAVITY: -40.0,
         JUMP_FORCE: 12.0,
         COLORS: {
@@ -267,6 +265,20 @@
             GOLD: 0xFFD700
         }
     };
+    
+    // --- EASY-TO-EDIT BONUS MESSAGES (10 items requested) ---
+    const BONUS_MESSAGES = [
+        "FRESHLY WAXED!",
+        "DONNIELICIOUS!",
+        "EXFOLIATED!",
+        "STOCKTON!",
+        "NO SHAG, NO DRAG!",
+        "MAX COMFORT!",
+        "BLOWN AT 8!",
+        "BUFFED AND SHINED!",
+        "MPREG-TASTIC!",
+        "TITS MCGEE!"
+    ];
 
     // --- AUDIO SYSTEM ---
     const AudioSys = {
@@ -353,7 +365,7 @@
             } catch (e) {
                 console.error("Error loading scores from Supabase:", e);
                 document.getElementById('high-score-list').innerHTML = 
-                    '<strong>🏆 TOP 10 SCORES 🏆</strong><p style="color: #ff4444; margin-top: 10px; font-size: 8px;">Error loading scores. Check setup/network/keys.</p>';
+                    '<strong> TOP 10 SCORES </strong><p style="color: #ff4444; margin-top: 10px; font-size: 8px;">Error loading scores. Check setup/network/keys.</p>';
                 return []; 
             }
         },
@@ -395,7 +407,7 @@
             const scores = await this.loadScores();
             const listEl = document.getElementById('high-score-list');
             
-            let html = `<strong>🏆 ${this.GAME_ID.replace('_', ' ')} TOP ${this.MAX_SCORES} 🏆</strong><ol style="padding-left: 20px; list-style-type: none; margin: 0;">`;
+            let html = `<strong> ${this.GAME_ID.replace('_', ' ')} TOP ${this.MAX_SCORES} </strong><ol style="padding-left: 20px; list-style-type: none; margin: 0;">`;
             
             if (scores.length === 0) {
                 html += '<li style="margin-top: 10px;">Loading... or Be the first to score!</li>';
@@ -580,13 +592,11 @@
             const cap = createBox(0.4, 0.2, 0.4, 0x44AAFF, 0, 1.1, 0);
             group.add(bot, cap);
             group.userData.spin = true;
-            group.userData.msg = "SILKY SMOOTH!";
         }
         else if (type === ITEM_TYPES.BONUS_SPEED) {
             const stone = createBox(0.7, 0.4, 0.5, 0x888888, 0, 0.5, 0);
             group.add(stone);
             group.userData.spin = true;
-            group.userData.msg = "EXFOLIATED!";
         }
 
         worldGroup.add(group);
@@ -600,6 +610,12 @@
         div.innerText = text;
         document.getElementById('message-container').appendChild(div);
         setTimeout(() => div.remove(), 1500);
+    }
+    
+    // Function to get a random bonus message
+    function getRandomBonusMessage() {
+        const index = Math.floor(Math.random() * BONUS_MESSAGES.length);
+        return BONUS_MESSAGES[index];
     }
 
     // --- CONTROL LOGIC ---
@@ -702,7 +718,7 @@
         const dt = clock.getDelta();
 
         if (state.running) {
-            state.speed = Math.min(CONFIG.SPEED_MAX, state.speed + dt * 0.5);
+            state.speed = Math.min(CONFIG.SPEED_MAX, state.speed + dt * 1.0); // <-- INCREASED ACCELERATION (WAS 0.5)
             distance += state.speed * dt;
             state.score += (state.speed * dt * 0.1) * state.multiplier;
             document.getElementById('score-display').innerText = Math.floor(state.score);
@@ -775,7 +791,7 @@
                             AudioSys.sfxCoin();
                         } else {
                             AudioSys.sfxBonus();
-                            showFloatingMessage(item.userData.msg);
+                            showFloatingMessage(getRandomBonusMessage()); // <-- USED NEW MESSAGE FUNCTION
                             
                             if (type === ITEM_TYPES.BONUS_SHIELD) {
                                 state.invincible = true;
