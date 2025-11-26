@@ -418,22 +418,19 @@
         return c;
     }
 
-    // --- AUDIO SYSTEM (UPDATED FOR MOBILE AND LOCAL FILES) ---
+    // --- AUDIO SYSTEM (UPDATED FOR LOCAL FILES) ---
     const AudioSys = {
         ctx: null,
-        // *** UPDATED to use local file paths ***
         fartSound: new Audio('fart.mp3'),
         screamSound: new Audio('scream.mp3'),
         isInitialized: false,
 
-        // The new function that both initializes and unlocks the AudioContext
         initAndUnlock: function() {
             if (this.isInitialized) return;
             try {
                 window.AudioContext = window.AudioContext || window.webkitAudioContext;
                 this.ctx = new AudioContext();
                 
-                // Unlock on first interaction (required by many mobile browsers)
                 if (this.ctx.state === 'suspended') {
                     const buffer = this.ctx.createBuffer(1, 1, 22050);
                     const source = this.ctx.createBufferSource();
@@ -445,7 +442,7 @@
             } catch (e) {
                 console.warn("AudioContext not supported or blocked:", e);
                 this.ctx = null;
-                this.isInitialized = true; // Mark as initialized even if failed
+                this.isInitialized = true;
             }
         },
 
@@ -465,7 +462,6 @@
         playFart: function() {
             if(this.fartSound) {
                 this.fartSound.currentTime = 0;
-                // Use a promise-catching wrapper to fall back to tone if blocked
                 this.fartSound.play().catch(() => this.playTone(60, 'sawtooth', 0.5, 0.5));
             } else {
                  this.playTone(60, 'sawtooth', 0.5, 0.5);
@@ -474,7 +470,6 @@
         playScream: function() {
              if(this.screamSound) {
                 this.screamSound.currentTime = 0;
-                // *** playScream is called on death ***
                 this.screamSound.play().catch(() => {
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
@@ -490,7 +485,8 @@
                 });
             }
         },
-        sfxFlap: () => AudioSys.playTone(150, 'square', 0.1, 0.05),
+        // *** This is the original flap sound effect using a tone ***
+        sfxFlap: () => AudioSys.playTone(350, 'square', 0.1, 0.05), // Increased frequency for a "flap" sound
         sfxScore: () => AudioSys.playTone(600, 'sine', 0.2, 0.1)
     };
 
@@ -772,7 +768,7 @@
         document.getElementById('score-display').innerText = "0";
         document.getElementById('effects-container').innerHTML = '';
 
-        // *** playFart() is called on game start/load ***
+        // Play Fart on game start/load
         AudioSys.playFart(); 
 
         requestAnimationFrame(loop);
@@ -829,14 +825,13 @@
     function gameOver(reason) {
         state.running = false;
         
+        // scream.mp3 is played on death
+        AudioSys.playScream();
+        
         if (reason === 'fire') {
-            // *** scream.mp3 is played on death by fire ***
-            AudioSys.playScream();
             document.getElementById('death-msg').innerText = "ROASTED TURD!";
             document.getElementById('death-msg').style.color = "#FF4500";
         } else {
-            // *** scream.mp3 is played on death by slap/collision ***
-            AudioSys.playScream();
             const msgs = ["SLAPPED!", "FLUSHED!", "SQUISHED!", "HANDLED!"];
             document.getElementById('death-msg').innerText = msgs[Math.floor(Math.random()*msgs.length)];
             document.getElementById('death-msg').style.color = "#ddd";
@@ -940,12 +935,8 @@
                         state.score++;
                         document.getElementById('score-display').innerText = state.score;
                         
-                        // *** Randomly play fart (25% chance) or normal score tone ***
-                        if (Math.random() < 0.25) {
-                            AudioSys.playFart();
-                        } else {
-                            AudioSys.sfxScore();
-                        }
+                        // *** Play score tone ***
+                        AudioSys.sfxScore();
 
                         if(state.score % 5 === 0) {
                             scrollSpeed += 0.2;
@@ -1026,7 +1017,14 @@
 
         player.vy = FLAP_Y;
         player.vx = moveLeft ? -FLAP_X : FLAP_X;
+        
+        // 1. Play the regular flap sound effect (sfxFlap)
         AudioSys.sfxFlap();
+        
+        // 2. Randomly play the fart sound (5% chance)
+        if (Math.random() < 0.05) {
+            AudioSys.playFart();
+        }
     }
 
     // --- UI Logic ---
