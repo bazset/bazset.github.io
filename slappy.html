@@ -27,23 +27,25 @@
             height: 100vh;
         }
 
-        /* PHONE SIMULATION CONTAINER */
+        /* PHONE SIMULATION CONTAINER - Adjusted for larger game area */
         #phone-frame {
             position: relative;
             width: 100%;
             height: 100%;
-            max-width: 450px;
-            max-height: 900px;
             background: #000;
             box-shadow: 0 0 50px rgba(0,0,0,0.5);
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         @media (min-width: 500px) {
             #phone-frame {
+                /* Set a reasonable size for desktop play, larger than before */
+                width: 450px; 
+                height: 90vh;
                 border-radius: 40px;
                 border: 12px solid var(--phone-bezel);
-                height: 90vh;
             }
         }
 
@@ -76,7 +78,7 @@
 
         .control-hint {
             position: absolute;
-            bottom: 80px; /* Moved up to avoid fire */
+            bottom: 80px;
             width: 100%;
             text-align: center;
             color: rgba(255, 255, 255, 0.5);
@@ -223,7 +225,7 @@
     </div>
 
     <div id="start-screen">
-        <div style="font-size:60px; margin-bottom:10px;">💩🔥</div>
+        <div style="font-size:60px; margin-bottom:10px;">💩</div>
         <h1>SLAPPY<br>TURD</h1>
         <p class="subtitle">TAP LEFT to go Left<br>TAP RIGHT to go Right<br>The floor is FIRE!</p>
         
@@ -249,9 +251,9 @@
 </script>
 
 <script type="module">
-    import { createClient } from '@supabase/supabase-js';
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    // SUPABASE CONFIG
+    // SUPABASE CONFIG (Dummy keys for demonstration)
     const SUPABASE_URL = 'https://xybyjldasdstkvpagmdk.supabase.co'; 
     const SUPABASE_ANON_KEY = 'sb_publishable_5_B_Oh3Pcr-dppdUoxpGeg_oqRYKlCK';
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -297,7 +299,7 @@
         displayScores: async function() {
             const scores = await this.loadScores();
             const listEl = document.getElementById('high-score-list');
-            let html = `<strong>🏆 GLOBAL TOP 10</strong><ol>`;
+            let html = `<strong>💩 GLOBAL TOP 10</strong><ol>`;
             if (scores.length === 0) html += '<li>No scores yet.</li>';
             else scores.forEach((s, index) => html += `<li><span>${(index + 1)}. ${s.name}</span><span>${s.score}</span></li>`);
             html += '</ol>';
@@ -311,6 +313,22 @@
     
     // PALETTE & SPRITES
     const PALETTE = { 0: null, 1: '#4A3321', 2: '#6D4C31', 3: '#FFFFFF', 4: '#000000', 5: '#EAC0B5', 6: '#D68A85', 7: '#FF0000' };
+    const VOXEL_SIZE = 4; // Base size for background voxels
+
+    // Refined Background Colors (More subtle/muted)
+    const BG_PALETTE = {
+        SKY_LIGHT: '#B0E0E6',      // Powder Blue (subtle)
+        SKY_DARK: '#87CEFA',       // Light Sky Blue
+        CLOUD_LIGHT: '#F5F5F5',    // White Smoke
+        CLOUD_SHADOW: '#DCDCDC',   // Gainsboro
+        GRASS_FOREGROUND: '#6B8E23', // Olive Drab (more subtle)
+        GRASS_MID: '#556B2F',        // Dark Olive Green
+        GRASS_FAR: '#483C32',        // Taupe/Dirt (furthest layer)
+        TOILET_BASE: '#E0FFFF',       // Azure (Whiter porcelain)
+        TOILET_SHADOW: '#B0C4DE',     // Light Slate Gray
+        TREE_LEAVES: '#228B22',      // Forest Green
+        TREE_TRUNK: '#8B4513'        // Saddle Brown
+    };
 
     const SPRITE_TURD = [
         [0,0,0,0,0,1,1,0,0,0,0,0],
@@ -364,16 +382,19 @@
         return c;
     }
 
-    // --- AUDIO SYSTEM ---
+    // --- AUDIO SYSTEM (UNCHANGED) ---
     const AudioSys = {
         ctx: null,
-        fartSound: null,
-        screamSound: null,
+        fartSound: new Audio('https://s3.amazonaws.com/html5gamedev.com/fart.mp3'),
+        screamSound: new Audio('https://s3.amazonaws.com/html5gamedev.com/scream.mp3'),
         init: function() {
-            window.AudioContext = window.AudioContext || window.webkitAudioContext;
-            this.ctx = new AudioContext();
-            this.fartSound = new Audio('fart.mp3');
-            this.screamSound = new Audio('scream.mp3');
+            try {
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+            } catch (e) {
+                console.warn("AudioContext not supported or blocked:", e);
+                this.ctx = null;
+            }
         },
         playTone: function(freq, type, duration, vol=0.1) {
             if (!this.ctx) return;
@@ -395,11 +416,9 @@
             }
         },
         playScream: function() {
-            // Try file first, then fallback to synth scream
             if(this.screamSound) {
                 this.screamSound.currentTime = 0;
                 this.screamSound.play().catch(() => {
-                    // Fallback Synth Scream
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
                     osc.type = 'sawtooth';
@@ -419,7 +438,14 @@
     };
 
     // --- GAME STATE ---
-    let state = { running: false, score: 0, width: 0, height: 0, frames: 0 };
+    let state = { 
+        running: false, 
+        score: 0, 
+        width: 0, 
+        height: 0, 
+        frames: 0,
+        bgScrollX: 0
+    };
     let player = { x: 50, y: 200, vx: 0, vy: 0, radius: 18, rot: 0 };
     let hands = [];
     let scrollSpeed = 2.5;
@@ -430,6 +456,232 @@
     const FLAP_X = 6.5;         
     const FLAP_Y = -7;
     const FIRE_HEIGHT = 60; // Height of the fire pit
+
+    // --- BACKGROUND ASSET DATA (Detailed/Dense) ---
+    const BACKGROUND_ASSETS = {
+        clouds: [
+            { layer: 1, x: 0.1, y: 0.2, scale: 2.5 },
+            { layer: 1, x: 0.5, y: 0.1, scale: 3 },
+            { layer: 1, x: 0.8, y: 0.3, scale: 1.8 },
+            { layer: 2, x: 0.3, y: 0.4, scale: 2 },
+            { layer: 2, x: 0.9, y: 0.5, scale: 2.5 },
+            { layer: 2, x: 0.7, y: 0.15, scale: 1.5 },
+        ],
+        toilets: [
+            // Layer 3: Distant Toilets 
+            { layer: 3, x: 0.05, y: 0.8, scale: 0.4, h: 40 },
+            { layer: 3, x: 0.4, y: 0.82, scale: 0.25, h: 30 },
+            { layer: 3, x: 0.75, y: 0.8, scale: 0.3, h: 35 },
+            // Layer 4: Mid-ground Toilets 
+            { layer: 4, x: 0.3, y: 0.75, scale: 0.6, h: 60 },
+            { layer: 4, x: 0.85, y: 0.7, scale: 0.5, h: 50 },
+        ],
+        trees: [
+            // Layer 2: Furthest Trees (slowest)
+            { layer: 2, x: 0.2, y: 0.8, scale: 0.7, h: 80 },
+            { layer: 2, x: 0.6, y: 0.85, scale: 0.5, h: 60 },
+            // Layer 3: Mid Trees
+            { layer: 3, x: 0.1, y: 0.7, scale: 1.0, h: 100 },
+            { layer: 3, x: 0.5, y: 0.75, scale: 0.8, h: 85 },
+        ],
+        // Parallax factors (lower number means further away/slower scrolling)
+        PARALLAX: {
+            1: 0.1, // Distant Clouds
+            2: 0.2, // Distant Trees / Far Grass
+            3: 0.4, // Distant Toilets / Mid Trees
+            4: 0.7, // Mid-ground Toilets
+            5: 1.0  // Hands, Player (Game Layer - relative to scrollSpeed)
+        }
+    };
+
+    function drawVoxelCloud(x, y, scale = 1) {
+        const p = VOXEL_SIZE * scale;
+        const L = BG_PALETTE.CLOUD_LIGHT;
+        const S = BG_PALETTE.CLOUD_SHADOW;
+        // More subtle, less blocky cloud pattern
+        const pattern = [
+            [0,0,S,L,L,L,S,0,0],
+            [0,L,L,L,L,L,L,S,0],
+            [L,L,L,L,L,L,L,L,S],
+            [L,L,L,L,L,L,L,S,0],
+            [0,S,S,L,L,S,0,0,0]
+        ];
+
+        for(let r=0; r < pattern.length; r++) {
+            for(let c=0; c < pattern[r].length; c++) {
+                if(pattern[r][c] !== 0) {
+                    ctx.fillStyle = pattern[r][c];
+                    ctx.fillRect(x + c * p, y + r * p, p, p);
+                }
+            }
+        }
+    }
+
+    function drawVoxelTree(x, y, height, scale) {
+        const p = VOXEL_SIZE * 0.8;
+        const L = BG_PALETTE.TREE_LEAVES;
+        const T = BG_PALETTE.TREE_TRUNK;
+        
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+
+        // Trunk
+        const trunkW = 10;
+        const trunkH = height * 0.3;
+        ctx.fillStyle = T;
+        ctx.fillRect(15, height - trunkH, trunkW, trunkH);
+
+        // Leaves (Simplified Voxel Triangle/Bush)
+        const crownH = height * 0.7;
+        const crownW = 50;
+        
+        ctx.fillStyle = L;
+        for(let r=0; r < 8; r++) {
+            const rowW = crownW * (1 - r/8);
+            const rowY = height - trunkH - r * (crownH/8);
+            ctx.fillRect(15 - rowW/2 + trunkW/2, rowY, rowW, crownH/8 + 2);
+        }
+        
+        ctx.restore();
+    }
+
+    function drawVoxelToilet(x, y, height, scale) {
+        const p = VOXEL_SIZE;
+        const W = BG_PALETTE.TOILET_BASE;
+        const G = BG_PALETTE.TOILET_SHADOW;
+        
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+
+        const baseH = height * 0.15;
+        const bowlH = height * 0.4;
+        const tankH = height * 0.45;
+        const bowlW = 30;
+        const tankW = 20;
+
+        // Base/Pedestal
+        ctx.fillStyle = W;
+        ctx.fillRect(5, 0, bowlW + 10, baseH);
+        ctx.fillStyle = G;
+        ctx.fillRect(5, 0, 5, baseH); 
+
+        // Bowl
+        ctx.fillStyle = W;
+        ctx.fillRect(0, baseH, bowlW + 20, bowlH);
+        ctx.fillStyle = G;
+        ctx.fillRect(0, baseH, 5, bowlH);
+        ctx.fillRect(bowlW + 15, baseH, 5, bowlH);
+
+        // Tank
+        ctx.fillStyle = W;
+        ctx.fillRect(10, baseH + bowlH, tankW, tankH);
+        ctx.fillStyle = G;
+        ctx.fillRect(10, baseH + bowlH, 5, tankH);
+
+        // Seat/Lid
+        ctx.fillStyle = G;
+        ctx.fillRect(5, baseH + bowlH*0.2, bowlW+10, 5); 
+
+        ctx.restore();
+    }
+
+    // Draw Background with Parallax
+    function drawBackground() {
+        const playableHeight = state.height - FIRE_HEIGHT;
+        const viewPortSpeed = scrollSpeed * 0.5;
+        const playerShift = state.width * 0.5 - player.x; 
+
+        state.bgScrollX -= viewPortSpeed; 
+
+        // 1. SKY (Static Gradient)
+        const skyGradient = ctx.createLinearGradient(0, 0, 0, playableHeight);
+        skyGradient.addColorStop(0, BG_PALETTE.SKY_LIGHT);
+        skyGradient.addColorStop(1, BG_PALETTE.SKY_DARK);
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, state.width, playableHeight);
+
+        // --- BACKGROUND ASSET LAYERS ---
+
+        // Layer 1: CLOUDS (Parallax 0.1)
+        const cloudParallaxFactor = BACKGROUND_ASSETS.PARALLAX[1];
+        const cloudOffset = (state.bgScrollX * cloudParallaxFactor) % (state.width * 2);
+
+        ctx.save();
+        ctx.translate(cloudOffset + playerShift * 0.1, 0);
+        for (let i = 0; i < 2; i++) {
+            BACKGROUND_ASSETS.clouds.forEach(c => {
+                const x = c.x * state.width + i * state.width * 2; 
+                drawVoxelCloud(x, c.y * playableHeight, c.scale);
+            });
+        }
+        ctx.restore();
+        
+        // --- TERRAIN LAYERS ---
+        const horizonY = playableHeight * 0.85; 
+
+        // Layer 2: FAR GRASS/TREES (Parallax 0.2)
+        const grassParallaxFactor2 = BACKGROUND_ASSETS.PARALLAX[2];
+        const grassOffset2 = (state.bgScrollX * grassParallaxFactor2) % (VOXEL_SIZE * 50);
+        ctx.fillStyle = BG_PALETTE.GRASS_FAR;
+        ctx.beginPath();
+        ctx.moveTo(0, horizonY);
+        for (let x = -grassOffset2; x < state.width + VOXEL_SIZE * 50; x += VOXEL_SIZE * 5) {
+            const h = 5 + Math.sin(x * 0.05 + state.frames * 0.03) * 3;
+            ctx.lineTo(x, horizonY + h);
+            ctx.lineTo(x + VOXEL_SIZE * 2.5, horizonY + h + 2);
+        }
+        ctx.lineTo(state.width, playableHeight);
+        ctx.lineTo(0, playableHeight);
+        ctx.closePath();
+        ctx.fill();
+
+        // Layer 3: MID GRASS/TOILETS (Parallax 0.4)
+        const grassParallaxFactor3 = BACKGROUND_ASSETS.PARALLAX[3];
+        const grassOffset3 = (state.bgScrollX * grassParallaxFactor3) % (VOXEL_SIZE * 30);
+        ctx.fillStyle = BG_PALETTE.GRASS_MID;
+        ctx.beginPath();
+        ctx.moveTo(0, horizonY);
+        for (let x = -grassOffset3; x < state.width + VOXEL_SIZE * 30; x += VOXEL_SIZE * 4) {
+            const h = 10 + Math.sin(x * 0.08 + state.frames * 0.05) * 5;
+            ctx.lineTo(x, horizonY + h);
+            ctx.lineTo(x + VOXEL_SIZE * 2, horizonY + h + 4);
+        }
+        ctx.lineTo(state.width, playableHeight);
+        ctx.lineTo(0, playableHeight);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Render Trees on their layers
+        BACKGROUND_ASSETS.trees.forEach(t => {
+            const parallax = BACKGROUND_ASSETS.PARALLAX[t.layer];
+            const offset = (state.bgScrollX * parallax) % (state.width * 2);
+            for (let i = 0; i < 2; i++) {
+                const x = t.x * state.width + i * state.width * 2 + offset;
+                const y = playableHeight - t.h * t.scale;
+                drawVoxelTree(x, y, t.h, t.scale);
+            }
+        });
+
+        // Render Toilets on their layers
+        BACKGROUND_ASSETS.toilets.forEach(t => {
+            const parallax = BACKGROUND_ASSETS.PARALLAX[t.layer];
+            const offset = (state.bgScrollX * parallax) % (state.width * 2);
+            for (let i = 0; i < 2; i++) {
+                const x = t.x * state.width + i * state.width * 2 + offset;
+                const y = playableHeight - t.h * t.scale;
+                drawVoxelToilet(x, y, t.h, t.scale);
+            }
+        });
+
+        // Layer 5: FOREGROUND GRASS (Static/Minimal scroll)
+        const grassHeight = 20;
+        const grassY = playableHeight - grassHeight;
+        ctx.fillStyle = BG_PALETTE.GRASS_FOREGROUND;
+        ctx.fillRect(0, grassY, state.width, playableHeight - grassY);
+    }
+
 
     function resize() {
         const parent = document.getElementById('phone-frame');
@@ -454,6 +706,7 @@
         hands = [];
         state.running = true;
         state.frames = 0;
+        state.bgScrollX = 0;
         
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('game-over-screen').classList.add('hidden');
@@ -461,26 +714,48 @@
         document.getElementById('effects-container').innerHTML = '';
 
         if (!AudioSys.ctx) AudioSys.init();
+        AudioSys.playFart(); 
+
         requestAnimationFrame(loop);
     }
 
-    function spawnHand() {
+    function spawnHand(gapCenterY) {
+        // Gap size decreases slightly with score
+        const gapSize = Math.max(160, 220 - (state.score * 2));
+
+        // Top hand position
+        hands.push({
+            x: state.width, y: gapCenterY - gapSize / 2 - handCanvas.height + 10, 
+            w: handCanvas.width, h: handCanvas.height, 
+            passed: false, isBottom: false, gapCenterY: gapCenterY
+        });
+        // Bottom hand position
+        hands.push({
+            x: state.width, y: gapCenterY + gapSize / 2 - 10,
+            w: handCanvas.width, h: handCanvas.height, 
+            passed: false, isBottom: true, gapCenterY: gapCenterY
+        });
+    }
+
+    function generateNewHandPair() {
         // Hands only spawn above the fire line
         const playableHeight = state.height - FIRE_HEIGHT;
         const gapSize = Math.max(160, 220 - (state.score * 2));
         const minGapY = gapSize / 2 + 50;
         const maxGapY = playableHeight - gapSize / 2 - 20;
-        const gapCenter = Math.floor(Math.random() * (maxGapY - minGapY + 1)) + minGapY;
-
-        hands.push({
-            x: state.width, y: gapCenter - gapSize / 2 - handCanvas.height + 10, 
-            w: handCanvas.width, h: handCanvas.height, passed: false
-        });
-        hands.push({
-            x: state.width, y: gapCenter + gapSize / 2 - 10,
-            w: handCanvas.width, h: handCanvas.height, passed: false
-        });
+        
+        if (maxGapY <= minGapY) {
+            const safeGapSize = playableHeight - 100;
+            const safeMinY = safeGapSize / 2 + 50;
+            const safeMaxY = playableHeight - safeGapSize / 2 - 20;
+            const gapCenter = (safeMinY + safeMaxY) / 2;
+            spawnHand(gapCenter);
+        } else {
+            const gapCenter = Math.floor(Math.random() * (maxGapY - minGapY + 1)) + minGapY;
+            spawnHand(gapCenter);
+        }
     }
+
 
     function showFloatText(text) {
         const div = document.createElement('div');
@@ -535,102 +810,98 @@
         player.x += player.vx;
         player.rot = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, (player.vy * 0.1)));
 
-        // Fire Floor Collision
+        // Turd's effective hit area
+        const pW = turdCanvas.width;
+        const pH = turdCanvas.height;
+        const pX = player.x;
+        const pY = player.y;
+
+        // 1. Fire Floor Collision
         const fireLine = state.height - FIRE_HEIGHT;
-        if (player.y + player.radius * 2 >= fireLine) { 
+        if (pY + pH >= fireLine) { 
             gameOver('fire');
             return;
         }
         
-        // Ceiling
-        if (player.y <= 0) { 
+        // 2. Ceiling
+        if (pY <= 0) { 
             player.y = 0;
             player.vy = 0;
         }
 
-        // Left/Right Walls
-        if (player.x + player.radius * 2 < 0) {
-            gameOver('wall');
-            return;
-        }
-        if (player.x > state.width - player.radius * 2) {
-            player.x = state.width - player.radius * 2;
+        // 3. Right Wall
+        if (player.x > state.width - pW) {
+            player.x = state.width - pW;
             player.vx = 0;
         }
+        
+        // 4. Left Wall Collision (REQUESTED CHANGE: Prevent going off screen left)
+        if (player.x < 0) {
+            player.x = 0;
+            player.vx = 0;
+        }
+        
+        // 5. Hands Spawning
+        if (state.frames % Math.floor(1000 / (scrollSpeed * 3)) === 0) generateNewHandPair();
 
-        // Hands
-        if (state.frames % Math.floor(1000 / (scrollSpeed * 3)) === 0) spawnHand();
-
+        // 6. Hands Movement, Collision, and Scoring
         for (let i = hands.length - 1; i >= 0; i--) {
             let h = hands[i];
             h.x -= scrollSpeed;
 
-            const pW = turdCanvas.width * 0.7; 
-            const pH = turdCanvas.height * 0.7;
-            const pX = player.x + (turdCanvas.width - pW)/2;
-            const pY = player.y + (turdCanvas.height - pH)/2;
-
+            // Collision Check
             if (pX < h.x + h.w && pX + pW > h.x && pY < h.y + h.h && pY + pH > h.y) {
                 gameOver('slap');
                 return;
             }
 
-            if (!h.passed && h.x + h.w < player.x) {
-                h.passed = true;
-                if (!(hands[i-1] && hands[i-1].x === h.x)) {
-                    state.score++;
-                    document.getElementById('score-display').innerText = state.score;
-                    AudioSys.sfxScore();
-                    if(state.score % 5 === 0) {
-                        scrollSpeed += 0.2;
-                        showFloatText("SPEED UP!");
-                    }
+            // Scoring Check (Only check on the top hand of the pair, identified by !h.isBottom)
+            if (!h.isBottom && !h.passed) {
+                // Check if the player's front edge has passed the hand's rear edge
+                if (pX > h.x + h.w) { 
+                    const playerCenterY = pY + pH / 2;
+                    const gapSize = Math.max(160, 220 - (state.score * 2));
+                    
+                    if (playerCenterY >= h.gapCenterY - gapSize / 2 && 
+                        playerCenterY <= h.gapCenterY + gapSize / 2) {
+                        
+                        h.passed = true;
+                        // Mark the corresponding bottom hand as passed too to prevent double-scoring
+                        hands[i+1].passed = true; 
+
+                        state.score++;
+                        document.getElementById('score-display').innerText = state.score;
+                        AudioSys.sfxScore();
+                        if(state.score % 5 === 0) {
+                            scrollSpeed += 0.2;
+                            showFloatText("SPEED UP!");
+                        }
+                    } 
                 }
             }
+            
+            // Clean up off-screen hands
             if (h.x + h.w < -50) hands.splice(i, 1);
         }
     }
 
     function draw() {
-        // Draw Tiled Background
-        ctx.fillStyle = '#fce4ec';
-        ctx.fillRect(0, 0, state.width, state.height);
-        
-        ctx.strokeStyle = '#f8bbd0';
-        ctx.lineWidth = 2;
-        const tileSize = 40;
-        const offset = (state.frames * scrollSpeed * 0.5) % tileSize;
-        
-        ctx.beginPath();
-        for(let x = -offset; x < state.width; x += tileSize) {
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, state.height - FIRE_HEIGHT);
-        }
-        for(let y = 0; y < state.height - FIRE_HEIGHT; y += tileSize) {
-            ctx.moveTo(0, y);
-            ctx.lineTo(state.width, y);
-        }
-        ctx.stroke();
+        // 1. Draw Parallax Background 
+        drawBackground();
 
-        // Draw Hands
+        // 2. Draw Hands 
         hands.forEach(h => {
             ctx.drawImage(handCanvas, h.x, h.y);
-            ctx.fillStyle = '#EAC0B5';
-            if (h.x + h.w < state.width + 200) {
-                const armH = h.h * 0.4;
-                const armY = h.y + h.h * 0.3;
-                ctx.fillRect(h.x + h.w - 5, armY, state.width - h.x + 100, armH);
-            }
         });
 
-        // Draw Player
+        // 3. Draw Player
         ctx.save();
         ctx.translate(player.x + turdCanvas.width/2, player.y + turdCanvas.height/2);
         ctx.rotate(player.rot);
         ctx.drawImage(turdCanvas, -turdCanvas.width/2, -turdCanvas.height/2);
         ctx.restore();
 
-        // DRAW FIRE (Animated Voxel Style)
+        // 4. DRAW FIRE (Animated Voxel Style)
         const fireBase = state.height - FIRE_HEIGHT;
         const pixelSize = 10;
         const cols = Math.ceil(state.width / pixelSize);
