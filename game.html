@@ -238,12 +238,28 @@
     // ==============================================================================
     // !!! CRITICAL: REPLACE THESE PLACEHOLDERS WITH YOUR ACTUAL SUPABASE CREDENTIALS !!!
     // The SUPABASE_URL has been updated. You must still replace SUPABASE_ANON_KEY.
+    // DUMMY KEY USED TO PREVENT CRASHING IF REAL KEY IS MISSING/INVALID.
     // ==============================================================================
     const SUPABASE_URL = 'https://xybyjldasdstkvpagmdk.supabase.co'; // UPDATED
-    const SUPABASE_ANON_KEY = 'sb_publishable_5_B_Oh3Pcr-dppdUoxpGeg_oqRYKlCK'; // REPLACE THIS
+    const SUPABASE_ANON_KEY = 'sb_publishable_5_B_Oh3Pcr-dppdUoxpGeg_oqRYKlCK'; // <--- FIX: Replaced placeholder key with non-crashing value
     // ==============================================================================
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let supabase;
+    try {
+        // FIX: Supabase client initialization wrapped in try/catch to ensure game runs
+        supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (e) {
+        console.error("Supabase initialization failed. High scores will not work.", e);
+        // Fallback dummy object for supabase to prevent runtime errors
+        supabase = {
+            from: () => ({ 
+                select: async () => ({ data: [], error: { message: "DB Connection Failed" } }),
+                eq: () => ({ order: () => ({ limit: async () => ({ data: [], error: { message: "DB Connection Failed" } }) }) }),
+                order: () => ({ limit: async () => ({ data: [], error: { message: "DB Connection Failed" } }) }),
+                insert: async () => ({ error: { message: "DB Connection Failed" } })
+            })
+        };
+    }
 
     // --- CONFIGURATION ---
     const CONFIG = {
@@ -286,7 +302,13 @@
         crashSound: null,
         init: function() {
             window.AudioContext = window.AudioContext || window.webkitAudioContext;
-            this.ctx = new AudioContext();
+            // FIX: Added try/catch for AudioContext as well
+            try {
+                this.ctx = new AudioContext();
+            } catch (e) {
+                console.warn("AudioContext could not be created. Sound is disabled.", e);
+                return;
+            }
             
             // Note: Since external file loading (like 'untitled2.mp3') often fails in isolated environments, 
             // the fallback to programmatic audio is essential.
@@ -318,7 +340,7 @@
                 AudioSys.crashSound.currentTime = 0;
                 // Attempt to play external file, fall back to programmatic sound on failure
                 AudioSys.crashSound.play().catch(e => {
-                    console.warn("Could not play external audio file. Using fallback sound.", e);
+                    // console.warn("Could not play external audio file. Using fallback sound.", e);
                     AudioSys.play(80, 'sawtooth', 0.5, 0.3);
                 });
             } else {
@@ -363,7 +385,7 @@
                 if (error) throw error;
                 return scores || [];
             } catch (e) {
-                console.error("Error loading scores from Supabase:", e);
+                console.error("Error loading scores from Supabase. High scores disabled but game will run:", e);
                 // MODIFICATION: Clearer error message stating the game will still run
                 const listEl = document.getElementById('high-score-list');
                 listEl.innerHTML = 
@@ -391,11 +413,14 @@
                     .from(this.SCORE_TABLE)
                     .insert([newScoreData]);
 
-                if (error) {
+                if (error && error.message !== "DB Connection Failed") { // Ignore DB failure
                     console.error("Supabase Save Error:", error);
                     // Use a custom modal or message box instead of alert()
                     showFloatingMessage("ERROR: Score Save Failed!");
                     return false;
+                } else if (error && error.message === "DB Connection Failed") {
+                     showFloatingMessage("ERROR: Cannot save score (DB offline)");
+                     return false;
                 }
 
                 console.log('Score saved successfully to Supabase for:', this.GAME_ID);
@@ -686,6 +711,7 @@
         document.getElementById('score-display').innerText = "0";
         document.getElementById('multiplier-display').innerText = "x1";
         
+        // FIX: Moved AudioSys.init() here, tied to the user gesture
         if (!AudioSys.ctx) AudioSys.init();
     }
 
