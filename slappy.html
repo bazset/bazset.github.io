@@ -17,7 +17,8 @@
             margin: 0;
             overflow: hidden;
             background-color: var(--bg-color);
-            font-family: var(--ui-font);
+            /* FIX: Added system font fallbacks to correctly render emojis */
+            font-family: var(--ui-font), 'Segoe UI Emoji', 'Segoe UI Symbol', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
             user-select: none;
             -webkit-user-select: none;
             touch-action: none;
@@ -232,7 +233,7 @@
             SCORE: <span id="score-display">0</span>
         </div>
         <div id="top-player-hud">
-            👑 TOP: <span id="top-player-name">---</span> (<span id="top-player-score">0</span>)
+            🥇 TOP: <span id="top-player-name">---</span> (<span id="top-player-score">0</span>)
         </div>
         <div class="control-hint">
             &larr; TAP LEFT | TAP RIGHT &rarr;
@@ -330,6 +331,7 @@
             
             // Function to generate score list HTML
             const generateHtml = (scores) => {
+                // REPLACED 醇 with standard emoji
                 let html = `<strong>🏆 GLOBAL TOP 10</strong><ol>`;
                 if (scores.length === 0) html += '<li>No scores yet.</li>';
                 else scores.forEach((s, index) => html += `<li><span>${(index + 1)}. ${s.name}</span><span>${s.score}</span></li>`);
@@ -418,34 +420,49 @@
         return c;
     }
 
-    // --- AUDIO SYSTEM (UPDATED FOR LOCAL FILES) ---
+    // --- AUDIO SYSTEM ---
     const AudioSys = {
         ctx: null,
-        fartSound: new Audio('fart.mp3'),
-        screamSound: new Audio('scream.mp3'),
         isInitialized: false,
-
+        
+        // --- AUDIO FILE OBJECTS ---
+        // New: Load the requested audio files.
+        sfxFart: new Audio('fart.mp3'),
+        sfxScream: new Audio('scream.mp3'),
+        bgMusic: new Audio('hugh.mp3'),
+        
         initAndUnlock: function() {
             if (this.isInitialized) return;
             try {
+                // Initialize context for flap/score tones only, not for mp3s
                 window.AudioContext = window.AudioContext || window.webkitAudioContext;
                 this.ctx = new AudioContext();
                 
+                // Set music to loop
+                this.bgMusic.loop = true;
+                this.bgMusic.volume = 0.5; // Adjust volume as needed
+
+                // Unlock audio on touch/click (for both tones and media)
                 if (this.ctx.state === 'suspended') {
-                    const buffer = this.ctx.createBuffer(1, 1, 22050);
-                    const source = this.ctx.createBufferSource();
-                    source.buffer = buffer;
-                    source.connect(this.ctx.destination);
-                    source.start(0);
+                    this.ctx.resume();
                 }
+                
+                // Attempt to play/pause silent audio for media unlock on mobile
+                const mediaElements = [this.sfxFart, this.sfxScream, this.bgMusic];
+                mediaElements.forEach(media => {
+                    media.play().catch(() => {}); // Attempt play
+                    media.pause(); // Immediately pause to stay silent
+                });
+
                 this.isInitialized = true;
             } catch (e) {
-                console.warn("AudioContext not supported or blocked:", e);
+                console.warn("Audio Context Error:", e);
                 this.ctx = null;
                 this.isInitialized = true;
             }
         },
 
+        // Tone generation function (kept for sfxFlap and sfxScore)
         playTone: function(freq, type, duration, vol=0.1) {
             if (!this.ctx || this.ctx.state === 'suspended') return;
             const osc = this.ctx.createOscillator();
@@ -453,41 +470,38 @@
             osc.type = type;
             osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
             gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
             osc.connect(gain);
             gain.connect(this.ctx.destination);
             osc.start();
             osc.stop(this.ctx.currentTime + duration);
         },
+        
+        // Re-implemented to use local fart.mp3
         playFart: function() {
-            if(this.fartSound) {
-                this.fartSound.currentTime = 0;
-                this.fartSound.play().catch(() => this.playTone(60, 'sawtooth', 0.5, 0.5));
-            } else {
-                 this.playTone(60, 'sawtooth', 0.5, 0.5);
-            }
+            this.sfxFart.currentTime = 0;
+            this.sfxFart.play().catch(e => console.log("Fart audio blocked:", e));
         },
+        
+        // Re-implemented to use local scream.mp3
         playScream: function() {
-             if(this.screamSound) {
-                this.screamSound.currentTime = 0;
-                this.screamSound.play().catch(() => {
-                    const osc = this.ctx.createOscillator();
-                    const gain = this.ctx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(800, this.ctx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.6);
-                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-                    gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.6);
-                    osc.connect(gain);
-                    gain.connect(this.ctx.destination);
-                    osc.start();
-                    osc.stop(this.ctx.currentTime + 0.6);
-                });
-            }
+            this.sfxScream.currentTime = 0;
+            this.sfxScream.play().catch(e => console.log("Scream audio blocked:", e));
         },
-        // *** This is the original flap sound effect using a tone ***
-        sfxFlap: () => AudioSys.playTone(350, 'square', 0.1, 0.05), // Increased frequency for a "flap" sound
-        sfxScore: () => AudioSys.playTone(600, 'sine', 0.2, 0.1)
+        
+        // Re-implemented to use local hugh.mp3
+        playMusic: function() { 
+            this.bgMusic.play().catch(e => console.log("Music audio blocked:", e));
+        },
+        
+        // Re-implemented to stop hugh.mp3
+        stopMusic: function() { 
+            this.bgMusic.pause();
+            this.bgMusic.currentTime = 0;
+        },
+        
+        sfxFlap: () => AudioSys.playTone(350, 'square', 0.1, 0.05), 
+        sfxScore: () => AudioSys.playTone(600, 'sine', 0.2, 0.1),
     };
 
     // --- GAME STATE ---
@@ -499,7 +513,8 @@
         frames: 0,
         bgScrollX: 0
     };
-    let player = { x: 50, y: 200, vx: 0, vy: 0, radius: 18, rot: 0 };
+    // UPDATED: Reduced player radius from 18 to 15 for more forgiving collision
+    let player = { x: 50, y: 200, vx: 0, vy: 0, radius: 15, rot: 0 }; 
     let hands = [];
     let scrollSpeed = 2.5;
 
@@ -509,6 +524,9 @@
     const FLAP_X = 6.5;         
     const FLAP_Y = -7;
     const FIRE_HEIGHT = 60; // Height of the fire pit
+    // CONSTANT: Inset for hand collision box (smaller number = tighter hitbox)
+    const HAND_HITBOX_INSET = 8; 
+
 
     // --- BACKGROUND ASSET DATA (Detailed/Dense) ---
     const BACKGROUND_ASSETS = {
@@ -769,7 +787,10 @@
         document.getElementById('effects-container').innerHTML = '';
 
         // Play Fart on game start/load
-        AudioSys.playFart(); 
+        AudioSys.playFart();
+        
+        // Start Background Music
+        AudioSys.playMusic(); 
 
         requestAnimationFrame(loop);
     }
@@ -825,7 +846,10 @@
     function gameOver(reason) {
         state.running = false;
         
-        // scream.mp3 is played on death
+        // Stop Background Music
+        AudioSys.stopMusic();
+        
+        // scream.mp3 is played on death (now uses the loaded Audio object)
         AudioSys.playScream();
         
         if (reason === 'fire') {
@@ -900,19 +924,28 @@
         const spawnInterval = Math.floor(1000 / (Math.max(0.1, scrollSpeed) * 3));
         if (state.frames % spawnInterval === 0) generateNewHandPair();
 
-        // 6. Hands Movement, Circular Collision, and Scoring (UPDATED)
+        // 6. Hands Movement, Collision, and Scoring (REFINED COLLISION)
         for (let i = hands.length - 1; i >= 0; i--) {
             let h = hands[i];
             h.x -= scrollSpeed;
 
-            // --- Circular Collision Check (Point AABB Test for circular player) ---
-            // Find the closest point on the hand's bounding box to the player's center
-            const closestX = Math.max(h.x, Math.min(pCX, h.x + h.w));
-            const closestY = Math.max(h.y, Math.min(pCY, h.y + h.h));
+            // --- REFINED CIRCULAR COLLISION CHECK ---
+            const INSET = HAND_HITBOX_INSET; // Use the defined inset (8 pixels)
+
+            // Calculate the tighter bounding box for the hand obstacle
+            const handHitBoxX = h.x + INSET;
+            const handHitBoxW = h.w - INSET * 2;
+            const handHitBoxY = h.y + INSET;
+            const handHitBoxH = h.h - INSET * 2;
+
+            // Find the closest point on the hand's tighter bounding box to the player's center
+            const closestX = Math.max(handHitBoxX, Math.min(pCX, handHitBoxX + handHitBoxW));
+            const closestY = Math.max(handHitBoxY, Math.min(pCY, handHitBoxY + handHitBoxH));
 
             // Calculate the distance between the closest point and the player's center
             const distSq = (pCX - closestX) ** 2 + (pCY - closestY) ** 2;
 
+            // Collision occurs if the distance squared is less than the player's radius squared
             if (distSq < pR ** 2) {
                 gameOver('slap');
                 return;
@@ -935,7 +968,7 @@
                         state.score++;
                         document.getElementById('score-display').innerText = state.score;
                         
-                        // *** Play score tone ***
+                        // Play score tone
                         AudioSys.sfxScore();
 
                         if(state.score % 5 === 0) {
