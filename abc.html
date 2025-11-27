@@ -6,7 +6,7 @@
     <title>ABC Fun Game</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wghtも見事400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
         /* Custom animations */
@@ -32,6 +32,14 @@
         .animate-spin-slow {
           animation: spin 3s linear infinite;
         }
+        /* Fade in for screens */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-slate-100 touch-manipulation select-none flex flex-col items-center justify-center text-slate-800">
@@ -46,12 +54,15 @@
             <svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.207 15.354L4 15.192M4 12a8 8 0 0116 0" />
             </svg>
-            <span id="loading-text">Preparing audio assets...</span>
+            <span id="loading-text">Preparing audio cache...</span>
         </div>
     </div>
 
 
     <script type="module">
+        // NOTE: All Firebase dependencies have been removed as requested. 
+        // Audio caching is now session-only (in-memory).
+
         // --- CONSTANTS ---
         const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         const TOTAL_ROUNDS = 10;
@@ -74,14 +85,15 @@
         let totalAudios = 0; // Total expected audios
         let audiosLoaded = 0; // Audios successfully loaded/cached
         let totalProcessed = 0; // Total number of fetch attempts completed (success or failure)
+        let isGameReady = false; // Flag to control the start screen rendering
+        let failedLetters = new Set(); // Store letters that failed TTS
+        let PLAYABLE_ALPHABET = []; // Filtered list of letters for game rounds
 
         // Audio Caches
         const audioCache = {}; // Runtime cache (Blob/ArrayBuffer)
-        const LOCAL_STORAGE_PREFIX = 'abc_audio_';
         let currentAudio = null; // Global audio element for stopping playback
 
         // Optimized Phrases for Caching
-        // UPDATED: Now fetches "Find the " separately from "Letter A."
         const instructionPrefix = "Find the "; 
         const praisePhrase = "Yes, you got it!";
         const incorrectPhrase = "No, that's the wrong letter.";
@@ -95,7 +107,6 @@
             window.speechSynthesis.onvoiceschanged = () => {
                 fallbackVoice = window.speechSynthesis.getVoices().find(v => v.lang === 'en-US' || v.lang.startsWith('en')) || null;
             };
-            // Try to get voices immediately if they are already loaded
             fallbackVoice = window.speechSynthesis.getVoices().find(v => v.lang === 'en-US' || v.lang.startsWith('en')) || null;
         }
 
@@ -105,7 +116,8 @@
 
         // --- UTILITY FUNCTIONS ---
         
-        const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+        // Use PLAYABLE_ALPHABET for randomization
+        const getRandomPlayable = (arr) => arr[Math.floor(Math.random() * arr.length)];
         const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
 
         // Helper to wrap a promise with a timeout
@@ -116,7 +128,7 @@
             });
         };
         
-        // Converts Base64 string from localStorage to ArrayBuffer
+        // Converts Base64 string to ArrayBuffer
         const base64ToArrayBuffer = (base64) => {
           const binaryString = atob(base64);
           const len = binaryString.length;
@@ -127,24 +139,14 @@
           return bytes.buffer;
         };
         
-        // Converts ArrayBuffer (PCM data) to Base64 string for localStorage
-        const arrayBufferToBase64 = (buffer) => {
-            let binary = '';
-            // Ensure we treat the buffer correctly as bytes for conversion
-            const bytes = new Uint8Array(buffer); 
-            const len = bytes.byteLength;
-            for (let i = 0; i < len; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
-            return btoa(binary);
-        };
-
         // Converts raw PCM audio data (ArrayBuffer) to a playable WAV Blob
         const pcmToWav = (pcmData, sampleRate) => {
             const numChannels = 1;
             const bitDepth = 16;
-            const pcm16 = new Int16Array(pcmData);
-            const buffer = new ArrayBuffer(44 + pcm16.length * 2);
+            // Need Int16Array for correct size calculation
+            const pcm16 = new Int16Array(pcmData); 
+            // 44 bytes for WAV header + size of PCM data (Int16 is 2 bytes/sample)
+            const buffer = new ArrayBuffer(44 + pcm16.length * 2); 
             const view = new DataView(buffer);
             
             const writeString = (view, offset, str) => {
@@ -176,6 +178,7 @@
 
             // Write PCM data
             for (let i = 0; i < pcm16.length; i++) {
+                // Little-endian byte order (true)
                 view.setInt16(offset, pcm16[i], true); offset += 2;
             }
 
@@ -231,7 +234,7 @@
         };
 
 
-        // Sequential audio player. Checks cache, falls back to native speech if missing.
+        // Sequential audio player. Checks session cache, falls back to native speech if missing.
         const playSequentialAudio = (texts, onFinish = () => {}) => {
             if (!texts || texts.length === 0) {
                 onFinish();
@@ -258,7 +261,7 @@
                 if (blob) {
                     playAudioBlob(blob, playNext);
                 } else {
-                    console.warn(`Audio asset for: "${text}" not loaded. Falling back to native speech.`);
+                    console.warn(`Audio asset for: "${text}" not in session cache. Falling back to native speech.`);
                     // --- FALLBACK: Use Native TTS ---
                     speakFallback(text, playNext);
                 }
@@ -288,7 +291,7 @@
                     render();
                 });
             } else {
-                console.warn(`Audio asset for: "${text}" not loaded. Falling back to native speech.`);
+                console.warn(`Audio asset for: "${text}" not in session cache. Falling back to native speech.`);
                 // --- FALLBACK: Use Native TTS ---
                 isSpeaking = true;
                 speakFallback(text, () => {
@@ -301,28 +304,16 @@
         };
 
 
-        // --- TTS API HANDLING with Local Storage ---
+        // --- TTS API HANDLING (Session Cache Only) ---
 
-        const fetchAndCacheAudio = async (text) => {
-            const localStorageKey = LOCAL_STORAGE_PREFIX + text;
-
-            // 1. Check Local Storage first
-            try {
-                const cachedBase64 = localStorage.getItem(localStorageKey);
-                if (cachedBase64) {
-                    const pcmData = base64ToArrayBuffer(cachedBase64);
-                    // Sample rate is fixed to 24000 for this model, hardcode it for WAV conversion
-                    const wavBlob = pcmToWav(pcmData, 24000); 
-                    audioCache[text] = wavBlob;
-                    audiosLoaded++;
-                    return wavBlob;
-                }
-            } catch (e) {
-                console.warn("Could not read from local storage:", e);
-                // Continue to fetch if reading cache failed
+        const fetchAudioAndCacheSession = async (text) => {
+            // 1. Check in-memory cache first
+            if (audioCache[text]) {
+                audiosLoaded++;
+                return audioCache[text];
             }
 
-            // 2. If not found in cache, proceed with API fetch
+            // 2. Proceed with API fetch
             const apiKey = ""; 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
 
@@ -331,7 +322,8 @@
                 generationConfig: {
                     responseModalities: ["AUDIO"],
                     speechConfig: {
-                        voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } }
+                        // Using a clear, friendly voice
+                        voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } 
                     }
                 },
                 model: "gemini-2.5-flash-preview-tts"
@@ -360,14 +352,7 @@
                     const pcmData = base64ToArrayBuffer(audioData);
                     const wavBlob = pcmToWav(pcmData, sampleRate);
                     
-                    // 3. Save to Local Storage on successful fetch
-                    try {
-                        const base64Data = arrayBufferToBase64(pcmData);
-                        localStorage.setItem(localStorageKey, base64Data);
-                    } catch (e) {
-                        console.warn("Could not save to local storage:", e);
-                    }
-
+                    // Store in session cache
                     audioCache[text] = wavBlob;
                     audiosLoaded++;
                     return wavBlob;
@@ -384,11 +369,12 @@
                     return await withTimeout(fetchAttempt(), FETCH_TIMEOUT_MS, `Fetch for "${text}" timed out.`);
                 } catch (error) {
                     if (i < maxRetries - 1) {
+                        // Exponential backoff retry
                         await new Promise(resolve => setTimeout(resolve, delay));
                         delay *= 2;
                     } else {
                         console.error(`Failed to generate audio for "${text}" after all retries. Skipping.`, error);
-                        failedAudioCount++;
+                        // Do not increment failedAudioCount here. It's handled by the caller (prefetchAllAudio)
                         return null;
                     }
                 }
@@ -403,21 +389,23 @@
 
         const getNextTarget = () => {
             let next;
+            // Use the PLAYABLE_ALPHABET list
             do {
-              next = getRandom(ALPHABET);
+              next = getRandomPlayable(PLAYABLE_ALPHABET);
             } while (options.includes(next));
             return next;
         };
 
-        // Refactored from startRound to ensure UI switches before audio playback
         const setupRound = () => {
-            const target = nextTarget || getRandom(ALPHABET);
+            // Use the pre-calculated next target or pick a random one if starting fresh
+            const target = nextTarget || getRandomPlayable(PLAYABLE_ALPHABET);
             targetLetter = target;
             nextTarget = getNextTarget();
             
             let distractors = [];
             while (distractors.length < 2) {
-              let d = getRandom(ALPHABET);
+              // Distractors should also only be from the playable list
+              let d = getRandomPlayable(PLAYABLE_ALPHABET);
               if (d !== target && !distractors.includes(d)) {
                 distractors.push(d);
               }
@@ -426,12 +414,12 @@
             options = shuffle([target, ...distractors]);
             
             const cards = document.querySelectorAll('.game-card');
+            // Reset card animations/colors from previous round
             cards.forEach(card => card.classList.remove('animate-shake', 'animate-bounce-custom', 'ring-8', 'ring-red-400', 'ring-green-400'));
             
             // NOTE: The feedback text MUST be updated on the DOM directly before audio starts
             const feedbackElement = document.getElementById('feedback-text');
             if(feedbackElement) {
-                // Display text now includes the letter name structure for clarity
                 feedbackElement.textContent = `${instructionPrefix.trim()} ${targetLetter}`;
             }
             
@@ -491,7 +479,7 @@
             score = 0;
             round = 1;
             
-            nextTarget = getRandom(ALPHABET); 
+            nextTarget = getNextTarget(); // Initial target selection
             
             // 2. CRITICAL: Render the game screen IMMEDIATELY
             render(); 
@@ -508,12 +496,32 @@
         // --- RENDERING FUNCTIONS (DOM Manipulation) ---
 
         const renderStartScreen = () => {
-            // Determine if we show a disabled button while loading
-            const isFullyLoaded = totalProcessed >= totalAudios;
-            // The button is no longer disabled, but the color indicates readiness.
-            const buttonClass = isFullyLoaded
-                ? 'bg-green-500 hover:bg-green-600 border-green-600'
-                : 'bg-gray-400 hover:bg-gray-500 border-gray-500';
+            // 1. If not ready, show a dedicated loading screen (no flickering button)
+            if (!isGameReady) {
+                return `
+                    <div class="text-center p-8 animate-fade-in max-w-lg w-full mx-auto">
+                        <div class="bg-white p-8 rounded-3xl shadow-xl border-4 border-blue-200">
+                            <h1 class="text-4xl font-black text-blue-500 mb-4 tracking-wider">
+                                ABC Fun
+                            </h1>
+                            <p class="text-xl text-slate-500 mb-8 font-medium">
+                                Loading game resources...
+                            </p>
+                            <div class="flex justify-center items-center">
+                                <svg class="w-12 h-12 text-blue-500 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.207 15.354L4 15.192M4 12a8 8 0 0116 0" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 2. If ready, render the enabled Play button
+            const buttonClass = 'bg-green-500 hover:bg-green-600 border-green-600';
+            const statusMessage = failedAudioCount > 0 
+                ? `Ready to play! (Using ${PLAYABLE_ALPHABET.length} of ${ALPHABET.length} letters)`
+                : `Ready to play with all ${ALPHABET.length} letters!`;
 
             return `
                 <div class="text-center p-8 animate-fade-in max-w-lg w-full mx-auto">
@@ -522,7 +530,7 @@
                     </h1>
                     <div class="bg-white p-8 rounded-3xl shadow-xl border-4 border-blue-200">
                         <p class="text-xl text-slate-500 mb-8 font-medium">
-                            Ready to learn your letters? Let's play!
+                            ${statusMessage}
                         </p>
                         <button 
                             onclick="startGame()"
@@ -653,14 +661,16 @@
             totalProcessed++; // Increment the counter regardless of success/failure
             
             if (totalProcessed >= totalAudios) {
+                // Hide the banner completely
                 loadingBanner.classList.add('translate-y-[-100%]');
-                loadingBanner.classList.remove('bg-blue-500');
                 
-                let completionMessage = `All ${totalAudios} audio assets loaded.`;
+                let completionMessage = `All ${audiosLoaded} audio assets loaded into memory.`;
                 if (failedAudioCount > 0) {
+                    loadingBanner.classList.remove('bg-blue-500', 'bg-green-500');
                     loadingBanner.classList.add('bg-yellow-500');
-                    completionMessage = `${audiosLoaded} assets loaded, ${failedAudioCount} skipped. Game ready! (Using fallback speech where needed)`;
+                    completionMessage = `Loaded ${audiosLoaded} assets. Game ready! (Using fallback speech where needed)`;
                 } else {
+                    loadingBanner.classList.remove('bg-blue-500', 'bg-yellow-500');
                     loadingBanner.classList.add('bg-green-500');
                 }
                 
@@ -670,14 +680,11 @@
                  let failedMsg = failedAudioCount > 0 ? ` (${failedAudioCount} failed)` : '';
                  loadingTextSpan.textContent = `Preparing audio (${progress}% complete) ${failedMsg}`;
             }
-            // CRITICAL: Re-render the start screen to enable the Play button if loading finished.
-            if (gameState === 'start') {
-                render();
-            }
+            // CRITICAL: We do NOT call render() here to prevent the start screen from flickering.
         };
 
 
-        // --- INITIALIZATION (Non-Blocking) ---
+        // --- INITIALIZATION ---
 
         const prefetchAllAudio = async () => {
             const textsToCache = new Set();
@@ -688,34 +695,61 @@
             textsToCache.add(incorrectPhrase);
             
             // 2. Individual Letters (with "Letter " prefix for correct pronunciation)
+            // This is the largest part of the cache
             ALPHABET.forEach(l => textsToCache.add('Letter ' + l + '.'));
 
             const audioTexts = Array.from(textsToCache);
-            totalAudios = audioTexts.length; // Total 29 assets
+            totalAudios = audioTexts.length; 
             
             // Start all fetch/cache operations in the background
-            const fetchPromises = audioTexts.map(text => 
-                fetchAndCacheAudio(text)
+            const fetchPromises = audioTexts.map(text => {
+                // Check if the text is a letter instruction for exclusion tracking
+                const isLetterInstruction = text.startsWith('Letter ') && text.endsWith('.');
+                const letter = isLetterInstruction ? text.replace('Letter ', '').replace('.', '') : null;
+
+                return fetchAudioAndCacheSession(text)
+                    .then(result => {
+                        // If result is null, the fetch failed after all retries inside the function.
+                        if (!result && letter) {
+                            failedLetters.add(letter);
+                            failedAudioCount++;
+                        }
+                    })
                     .catch(error => { 
-                        // Log error, but proceed
-                        console.error(`Failed background load for ${text}:`, error); 
+                        // Should not happen if fetchAudioAndCacheSession catches its internal errors, 
+                        // but included for robustness.
+                        console.error(`Unexpected failure during background load:`, error);
                     })
                     .finally(() => { 
-                        // CRITICAL FIX: Ensure the banner updates regardless of success/failure
                         updateLoadingBanner(); 
-                    })
-            );
+                    });
+            });
 
             await Promise.allSettled(fetchPromises);
             
-            console.log(`Background audio processing complete. Loaded: ${audiosLoaded}, Failed: ${failedAudioCount}`);
+            // Set up PLAYABLE_ALPHABET here by filtering out failed letters
+            PLAYABLE_ALPHABET = ALPHABET.filter(l => !failedLetters.has(l));
+
+            // After loading, enable the game and render the start screen once
+            isGameReady = true;
+            render(); 
+
+            console.log(`Background audio processing complete. Loaded: ${audiosLoaded}, Failed: ${failedAudioCount}. Playable Letters: ${PLAYABLE_ALPHABET.length}`);
+            if (failedLetters.size > 0) {
+                 console.log("Excluded letters due to audio failure:", Array.from(failedLetters).join(', '));
+            }
+        };
+
+        const initializeApp = () => {
+            // Start the non-blocking prefetch immediately
+            prefetchAllAudio();
         };
 
         window.onload = function() {
-            // Initial render, showing the start screen
+            // Initial render shows the dedicated loading spinner because isGameReady is false
             render(); 
-            // Start the non-blocking prefetch immediately
-            prefetchAllAudio();
+            // Start the initialization
+            initializeApp();
         };
 
     </script>
