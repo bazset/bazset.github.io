@@ -300,6 +300,7 @@
     const AudioSys = {
         ctx: null,
         crashSound: null,
+        bgm: null, // NEW: Background music element
         init: function() {
             window.AudioContext = window.AudioContext || window.webkitAudioContext;
             // FIX: Added try/catch for AudioContext as well
@@ -310,11 +311,30 @@
                 return;
             }
             
-            // Note: Since external file loading (like 'untitled2.mp3') often fails in isolated environments, 
-            // the fallback to programmatic audio is essential.
+            // Death Sound (Existing)
             this.crashSound = new Audio('untitled2.mp3');
             this.crashSound.volume = 1.0;
             this.crashSound.load();
+
+            // NEW: Background Music Setup
+            this.bgm = new Audio('blewme.mp3');
+            this.bgm.loop = true; // Ensure it loops
+            this.bgm.volume = 0.5; // Set a reasonable volume
+            this.bgm.load();
+        },
+        playBGM: function() {
+            if (this.bgm) {
+                this.bgm.currentTime = 0;
+                // Play attempt must be wrapped in a catch block for user gesture policy
+                this.bgm.play().catch(e => {
+                    console.warn("BGM could not be played. Waiting for user interaction.", e);
+                });
+            }
+        },
+        stopBGM: function() {
+            if (this.bgm) {
+                this.bgm.pause();
+            }
         },
         play: function(freq, type, dur, vol=0.1, slide=false) {
             if (!this.ctx) return;
@@ -336,6 +356,7 @@
         sfxCoin: () => { AudioSys.play(1200, 'sine', 0.1, 0.1); setTimeout(()=>AudioSys.play(1800, 'sine', 0.2, 0.1), 80); },
         sfxBonus: () => { AudioSys.play(400, 'square', 0.1); setTimeout(()=>AudioSys.play(600, 'square', 0.1), 100); setTimeout(()=>AudioSys.play(800, 'square', 0.3), 200); },
         sfxCrash: () => { 
+            // Existing death sound logic
             if (AudioSys.crashSound) {
                 AudioSys.crashSound.currentTime = 0;
                 // Attempt to play external file, fall back to programmatic sound on failure
@@ -713,10 +734,17 @@
         
         // FIX: Moved AudioSys.init() here, tied to the user gesture
         if (!AudioSys.ctx) AudioSys.init();
+
+        // NEW: Start background music
+        AudioSys.playBGM();
     }
 
     function gameOver() {
         state.running = false;
+        
+        // NEW: Stop background music
+        AudioSys.stopBGM();
+
         AudioSys.sfxCrash();
         
         const finalScore = Math.floor(state.score);
