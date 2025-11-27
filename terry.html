@@ -34,31 +34,51 @@
             pointer-events: none;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: flex-start; /* Start elements from the top */
         }
 
+        /* Container for Score/Speed/Highscore Name */
         .hud-top {
             padding: 20px;
             display: flex;
             justify-content: space-between;
+            align-items: flex-start;
             color: white;
             text-shadow: 2px 2px 0 #000;
-            font-size: 12px; /* Smaller font for better mobile fit */
+            font-size: 12px;
+            pointer-events: none;
+            width: 100%;
+            box-sizing: border-box;
+            flex-wrap: wrap; /* Allow wrapping on small screens */
+        }
+        
+        /* Container for the Double Jump Meter, centered */
+        .hud-center-top {
+            padding: 10px 0;
+            width: 100%;
+            display: flex;
+            justify-content: center; /* Center the meter horizontally */
             pointer-events: none;
         }
 
-        .hud-bottom {
-            padding: 20px;
-            display: flex;
-            justify-content: flex-end;
-            align-items: flex-end;
-            pointer-events: none;
+        .hud-item {
+            padding: 5px 10px;
         }
         
-        /* Double Jump Label added here */
+        /* Highscore Holder Styling */
+        #highscore-holder {
+            font-size: 10px;
+            color: #ffcc00;
+            text-align: center;
+            width: 100%; /* Take full width on a new line */
+            order: 3; /* Push it to the third row/position */
+            margin-top: 10px;
+        }
+
+        /* Double Jump Label */
         .cooldown-label {
             color: white; 
-            font-size: 8px; /* Slightly smaller label */
+            font-size: 8px;
             margin-right: 8px; 
             align-self: center;
             text-shadow: 2px 2px 0 #000;
@@ -66,8 +86,8 @@
 
         /* Cooldown Bar */
         #jump-meter-container {
-            width: 100px; /* Reduced bar width */
-            height: 15px; /* Reduced bar height */
+            width: 100px;
+            height: 15px;
             background: #444;
             border: 2px solid #000;
             position: relative;
@@ -114,9 +134,7 @@
             background: #ff0000;
             border: 4px solid #fff;
             color: white;
-            /* CORRECTED FONT FAMILY HERE */
             font-family: 'Press Start 2P', cursive; 
-            /* END CORRECTION */
             font-size: 20px;
             padding: 15px 30px;
             cursor: pointer;
@@ -178,15 +196,19 @@
 
         <div id="ui-layer">
             <div class="hud-top">
-                <div id="score-display">SCORE: 0</div>
-                <div id="speed-display">SPD: 100%</div>
+                <div id="score-display" class="hud-item">SCORE: 0</div>
+                <div id="speed-display" class="hud-item">SPD: 100%</div>
+                <div id="highscore-holder">HIGHSCORE: LOADING...</div> <!-- New Highscore Display -->
             </div>
-            <div class="hud-bottom">
-                <div class="cooldown-label">DOUBLE JUMP</div> <!-- Label added here -->
+            
+            <div class="hud-center-top">
+                <div class="cooldown-label">DOUBLE JUMP</div>
                 <div id="jump-meter-container">
                     <div id="jump-meter-fill"></div>
                 </div>
             </div>
+
+            <!-- Removed original hud-bottom -->
         </div>
 
         <!-- Start Screen -->
@@ -506,12 +528,13 @@
             maxCooldown: 100,
         };
         
-        // Ground Y position adjusted to be 70px from bottom (was 100)
-        const GROUND_HEIGHT = 70;
+        // Ground Y position ADJUSTED TO 120px from bottom for more central view
+        const GROUND_HEIGHT = 120; 
 
         let obstacles = [];
         let particles = [];
         let screenShake = 0;
+        let topScoreHolder = 'NONE'; // State for highscore name
 
         function resetGame() {
             player.y = height - GROUND_HEIGHT - player.height;
@@ -535,16 +558,16 @@
         function spawnObstacle() {
             const obstacleTypes = ['block', 'toilet', 'cheese', 'highBarrier'];
             
-            // Reduced chance of spawning a high barrier (1/20 chance)
+            // Increased chance of spawning a high barrier (1/10 chance)
             let type = 'block'; // Default
             const r = Math.random();
-            if (r < 0.45) { // 45% chance for block
+            if (r < 0.4) { // 40% chance for block
                 type = 'block';
-            } else if (r < 0.7) { // 25% chance for toilet
+            } else if (r < 0.65) { // 25% chance for toilet
                 type = 'toilet';
-            } else if (r < 0.95) { // 25% chance for cheese
+            } else if (r < 0.90) { // 25% chance for cheese
                 type = 'cheese';
-            } else { // 5% chance for highBarrier (was 25% * 1/4 = 6.25% initially, now explicitly 5%)
+            } else { // 10% chance for highBarrier (UPPED FROM 5%)
                 type = 'highBarrier';
             }
             
@@ -566,7 +589,7 @@
                 obs.width = sprites.block.width;
                 obs.height = blockHeight;
                 // Random chance for a two-block stack
-                if (Math.random() > 0.8) { // Slightly lower chance for a stack
+                if (Math.random() > 0.8) { 
                     obs.height = blockHeight * 2;
                     obs.y = groundY - obs.height;
                 } else {
@@ -814,10 +837,11 @@
             drawRepeatingBackground(drawVoxelTree, 150, TREE_CLUSTER_WIDTH, height - GROUND_HEIGHT);
 
             // Ground (Uses new constant)
-            ctx.fillStyle = '#44aa44';
+            ctx.fillStyle = '#44aa44'; // Green grass/top layer
             ctx.fillRect(0, height - GROUND_HEIGHT, width, GROUND_HEIGHT);
-            ctx.fillStyle = '#553311';
-            ctx.fillRect(0, height - GROUND_HEIGHT * 0.8, width, GROUND_HEIGHT * 0.8);
+            ctx.fillStyle = '#553311'; // Brown dirt/bottom layer (now thicker)
+            // Adjust the fill height to be based on the new GROUND_HEIGHT
+            ctx.fillRect(0, height - GROUND_HEIGHT * 0.7, width, GROUND_HEIGHT * 0.7); 
 
             // Obstacles
             obstacles.forEach(ob => {
@@ -909,7 +933,7 @@
             }
         }, {passive: false});
 
-        function startGame() {
+        async function startGame() {
             document.getElementById('start-screen').classList.add('hidden');
             gameState = STATE.PLAY;
             resetGame();
@@ -923,6 +947,9 @@
                 bgm.currentTime = 0;
                 bgm.play().catch(e => console.log("Music play blocked:", e));
             }
+            
+            // Re-fetch leaderboard to update highscore holder on start
+            await refreshLeaderboard(true); 
         }
 
         // Updated submitScore to use Promise.race for a 5-second timeout
@@ -954,33 +981,45 @@
             document.getElementById('leaderboard-container').classList.remove('hidden');
             
             if (success) {
-                refreshLeaderboard();
+                refreshLeaderboard(false); // Update leaderboard list
             } else {
                  // If submission failed, show the board, but notify the user
                  const tbody = document.getElementById('leaderboard-body');
                  tbody.innerHTML = '<tr><td colspan="2" style="color:#ff0000;">SAVE FAILED. VIEWING CURRENT LEADERBOARD.</td></tr>';
-                 refreshLeaderboard();
+                 refreshLeaderboard(false);
             }
         }
 
-        async function refreshLeaderboard() {
+        async function refreshLeaderboard(updateTopHolder = true) {
             const tbody = document.getElementById('leaderboard-body');
-            tbody.innerHTML = '<tr><td colspan="2">LOADING...</td></tr>';
+            // Don't show loading on screen if we are just fetching the top holder
+            if (!updateTopHolder) { 
+                tbody.innerHTML = '<tr><td colspan="2">LOADING...</td></tr>';
+            }
             
-            // This waits for your Supabase fetch to complete
             const scores = await fetchLeaderboard(); 
-            tbody.innerHTML = '';
             
-            scores.forEach((s, index) => {
-                const tr = document.createElement('tr');
-                // Highlight the top score
-                if (index === 0) tr.style.color = '#ffff00'; 
-                tr.innerHTML = `<td>${s.name}</td><td>${s.score}</td>`;
-                tbody.appendChild(tr);
-            });
-            
-            if (scores.length === 0) {
-                 tbody.innerHTML = '<tr><td colspan="2">NO SCORES YET</td></tr>';
+            if (updateTopHolder) {
+                const holderText = scores.length > 0 
+                    ? `HIGHSCORE: ${scores[0].name} (${scores[0].score})`
+                    : 'HIGHSCORE: BE THE FIRST!';
+                document.getElementById('highscore-holder').innerText = holderText;
+            }
+
+            // Only update the table body if we are on the game over screen
+            if (!updateTopHolder) {
+                tbody.innerHTML = '';
+                scores.forEach((s, index) => {
+                    const tr = document.createElement('tr');
+                    // Highlight the top score
+                    if (index === 0) tr.style.color = '#ffff00'; 
+                    tr.innerHTML = `<td>${s.name}</td><td>${s.score}</td>`;
+                    tbody.appendChild(tr);
+                });
+                
+                if (scores.length === 0) {
+                     tbody.innerHTML = '<tr><td colspan="2">NO SCORES YET</td></tr>';
+                }
             }
         }
 
@@ -988,7 +1027,7 @@
         lastTime = performance.now();
         requestAnimationFrame(loop);
 
-        // Populate the mock leaderboard on load
+        // Populate the mock leaderboard and get the initial highscore holder on load
         refreshLeaderboard();
     </script>
 </body>
