@@ -35,31 +35,26 @@
             display: flex;
             flex-direction: column;
             justify-content: flex-start; /* Start elements from the top */
+            margin-top: 5vh; 
         }
 
-        /* Container for Score/Speed/Highscore Name */
+        /* Container for ALL Top HUD elements (Score, Speed, Jump Bar, Highscore) */
         .hud-top {
             padding: 20px;
             display: flex;
+            /* MODIFICATION: Align items vertically in the center */
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center; 
             color: white;
             text-shadow: 2px 2px 0 #000;
             font-size: 12px;
             pointer-events: none;
             width: 100%;
             box-sizing: border-box;
-            flex-wrap: wrap; /* Allow wrapping on small screens */
+            flex-wrap: wrap; 
         }
         
-        /* Container for the Double Jump Meter, centered */
-        .hud-center-top {
-            padding: 10px 0;
-            width: 100%;
-            display: flex;
-            justify-content: center; /* Center the meter horizontally */
-            pointer-events: none;
-        }
+        /* Removed .hud-center-top CSS as it's now consolidated into .hud-top */
 
         .hud-item {
             padding: 5px 10px;
@@ -195,20 +190,27 @@
         <canvas id="gameCanvas"></canvas>
 
         <div id="ui-layer">
+            <!-- MODIFICATION: Consolidated all HUD elements into the single hud-top container -->
             <div class="hud-top">
-                <div id="score-display" class="hud-item">SCORE: 0</div>
-                <div id="speed-display" class="hud-item">SPD: 100%</div>
-                <div id="highscore-holder">HIGHSCORE: LOADING...</div> <!-- New Highscore Display -->
+                <!-- Group 1: Score & Speed (Aligned left) -->
+                <div class="hud-group" style="display: flex; gap: 20px;">
+                    <div id="score-display" class="hud-item">SCORE: 0</div>
+                    <div id="speed-display" class="hud-item">SPD: 100%</div>
+                </div>
+                
+                <!-- Group 2: Double Jump Meter (Aligned right) -->
+                <div class="hud-group" style="display: flex;">
+                    <div class="cooldown-label">DOUBLE JUMP</div>
+                    <div id="jump-meter-container">
+                        <div id="jump-meter-fill"></div>
+                    </div>
+                </div>
+
+                <!-- Highscore Holder (Forced to bottom line by CSS order/width) -->
+                <div id="highscore-holder">HIGHSCORE: LOADING...</div> 
             </div>
             
-            <div class="hud-center-top">
-                <div class="cooldown-label">DOUBLE JUMP</div>
-                <div id="jump-meter-container">
-                    <div id="jump-meter-fill"></div>
-                </div>
-            </div>
-
-            <!-- Removed original hud-bottom -->
+            <!-- Removed the now-redundant hud-center-top -->
         </div>
 
         <!-- Start Screen -->
