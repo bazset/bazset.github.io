@@ -176,12 +176,10 @@
         td:nth-child(2) { text-align: right; }
 
     </style>
-    <!-- Load Supabase Client Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-    <!-- Audio Element for Music -->
     <audio id="bgm" loop>
         <source src="donnie.mp3" type="audio/mpeg">
     </audio>
@@ -190,15 +188,12 @@
         <canvas id="gameCanvas"></canvas>
 
         <div id="ui-layer">
-            <!-- MODIFICATION: Consolidated all HUD elements into the single hud-top container -->
             <div class="hud-top">
-                <!-- Group 1: Score & Speed (Aligned left) -->
                 <div class="hud-group" style="display: flex; gap: 20px;">
                     <div id="score-display" class="hud-item">SCORE: 0</div>
                     <div id="speed-display" class="hud-item">SPD: 100%</div>
                 </div>
                 
-                <!-- Group 2: Double Jump Meter (Aligned right) -->
                 <div class="hud-group" style="display: flex;">
                     <div class="cooldown-label">DOUBLE JUMP</div>
                     <div id="jump-meter-container">
@@ -206,14 +201,11 @@
                     </div>
                 </div>
 
-                <!-- Highscore Holder (Forced to bottom line by CSS order/width) -->
                 <div id="highscore-holder">HIGHSCORE: LOADING...</div> 
             </div>
             
-            <!-- Removed the now-redundant hud-center-top -->
-        </div>
+            </div>
 
-        <!-- Start Screen -->
         <div id="start-screen" class="menu-screen">
             <h1>TERRY MPREG</h1>
             <p style="color:#aaa; font-size: 12px; margin-bottom: 20px;">BRAIN DAMAGED GAMES</p>
@@ -224,17 +216,14 @@
             <button id="start-btn">RUN TERRY RUN</button>
         </div>
 
-        <!-- Game Over Screen -->
         <div id="game-over-screen" class="menu-screen hidden">
             <h1 style="color: #ff5555;">TERRY'S WATER BROKE!</h1>
             <p id="final-score">SCORE: 0</p>
             
-            <!-- Message for non-top-10 scores -->
             <p id="top-ten-message" class="hidden" style="color:#00ff00; margin-bottom: 20px; font-size: 14px; max-width: 80%;">
                 A noble attempt! Only the top 10 are recorded.
             </p>
 
-            <!-- Score submission form (only visible if player made the cut) -->
             <div id="high-score-form" class="hidden">
                 <p>YOU MADE THE TOP 10! ENTER NAME (MAX 10):</p>
                 <input type="text" id="player-name" maxlength="10" placeholder="YOUR NAME">
@@ -255,6 +244,7 @@
 
     <script type="module">
         // --- SUPABASE CONFIGURATION ---
+        // NOTE: If you deploy this, you should replace this placeholder key with your actual Supabase credentials.
         const SUPABASE_URL = 'https://xybyjldasdstkvpagmdk.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_5_B_Oh3Pcr-dppdUoxpGeg_oqRYKlCK';
         const TABLE_NAME = 'Highscores';
@@ -526,13 +516,12 @@
             doubleJumpForce: -450, // Adjusted double jump force
             gravity: 1800, // Adjusted gravity
             jumps: 0,
-            cooldown: 100, 
+            cooldown: 100,
             maxCooldown: 100,
         };
-        
-        // Ground Y position ADJUSTED TO 120px from bottom for more central view
-        const GROUND_HEIGHT = 120; 
 
+        // Ground Y position ADJUSTED TO 120px from bottom for more central view
+        const GROUND_HEIGHT = 120;
         let obstacles = [];
         let particles = [];
         let screenShake = 0;
@@ -543,14 +532,11 @@
             player.vy = 0;
             player.cooldown = 100;
             player.jumps = 0;
-            
             obstacles = [];
             particles = [];
-            
             score = 0;
             gameSpeed = 400;
             timeSinceStart = 0;
-            
             document.getElementById('score-display').innerText = `SCORE: 0`;
             document.getElementById('speed-display').innerText = `SPD: 100%`;
             updateStaminaUI();
@@ -558,10 +544,9 @@
 
         // Obstacle spawning updated to include less frequent highBarrier
         function spawnObstacle() {
-            const obstacleTypes = ['block', 'toilet', 'cheese', 'highBarrier'];
-            
-            // Increased chance of spawning a high barrier (1/10 chance)
+            const obstacleTypes = ['block', 'toilet', 'cheese', 'highBarrier']; // Increased chance of spawning a high barrier (1/10 chance)
             let type = 'block'; // Default
+
             const r = Math.random();
             if (r < 0.4) { // 40% chance for block
                 type = 'block';
@@ -572,15 +557,15 @@
             } else { // 10% chance for highBarrier (UPPED FROM 5%)
                 type = 'highBarrier';
             }
-            
+
             let obs = {
                 x: width + 50,
-                y: 0, 
-                width: 0, 
+                y: 0,
+                width: 0,
                 height: 0,
                 type: type,
                 passed: false,
-                speedFactor: 1.0 
+                speedFactor: 1.0
             };
 
             const groundY = height - GROUND_HEIGHT;
@@ -591,29 +576,29 @@
                 obs.width = sprites.block.width;
                 obs.height = blockHeight;
                 // Random chance for a two-block stack
-                if (Math.random() > 0.8) { 
+                if (Math.random() > 0.8) {
                     obs.height = blockHeight * 2;
                     obs.y = groundY - obs.height;
                 } else {
                     obs.y = groundY - obs.height;
                 }
-                obs.speedFactor = 0.9 + Math.random() * 0.1; 
+                obs.speedFactor = 0.9 + Math.random() * 0.1;
             } else if (type === 'toilet') {
                 obs.width = sprites.toilet.width;
-                obs.height = sprites.toilet.height; 
+                obs.height = sprites.toilet.height;
                 obs.y = groundY - obs.height;
-                obs.speedFactor = 1.0; 
+                obs.speedFactor = 1.0;
             } else if (type === 'cheese') {
                 obs.width = sprites.cheese.width;
-                obs.height = cheeseHeight; 
+                obs.height = cheeseHeight;
                 obs.y = groundY - obs.height;
-                obs.speedFactor = 1.2 + Math.random() * 0.2; 
+                obs.speedFactor = 1.2 + Math.random() * 0.2;
             } else if (type === 'highBarrier') {
                 // Tall barrier (3 blocks high)
-                obs.width = blockHeight; 
+                obs.width = blockHeight;
                 obs.height = blockHeight * 3;
                 obs.y = groundY - obs.height;
-                obs.speedFactor = 0.8; 
+                obs.speedFactor = 0.8;
             }
 
             obstacles.push(obs);
@@ -636,17 +621,18 @@
             if (gameState !== STATE.PLAY) return;
 
             timeSinceStart += dt;
-            
             const speedMultiplier = 1 + Math.floor(timeSinceStart / 5) * 0.05;
             const currentSpeed = gameSpeed * speedMultiplier;
-            
+
             score += (currentSpeed * dt) / 10;
+
             document.getElementById('score-display').innerText = `SCORE: ${Math.floor(score)}`;
             document.getElementById('speed-display').innerText = `SPD: ${Math.floor(speedMultiplier * 100)}%`;
 
+
             // Cooldown Refill
             if (player.cooldown < player.maxCooldown) {
-                player.cooldown += 40 * dt; 
+                player.cooldown += 40 * dt;
                 if(player.cooldown > player.maxCooldown) player.cooldown = player.maxCooldown;
                 updateStaminaUI();
             }
@@ -669,7 +655,7 @@
             // Obstacles - Adjusted spawn range
             const spawnDistance = 200 + Math.random() * 200; // Wider spawn range for more space
             let lastObsX = obstacles.length > 0 ? obstacles[obstacles.length-1].x : width;
-            
+
             // Increased spawn chance, but with wider spacing allowed
             if (width - lastObsX > spawnDistance) {
                 if (Math.random() < 0.1) spawnObstacle(); // Adjusted spawn check
@@ -680,15 +666,15 @@
                 let ob = obstacles[i];
                 
                 // --- Use individual speed factor for movement ---
-                ob.x -= currentSpeed * ob.speedFactor * dt; 
+                ob.x -= currentSpeed * ob.speedFactor * dt;
                 // --------------------------------------------------
 
                 // Collision Detection - Removed 10px buffer for accurate bounding box
                 if (
-                    player.x < ob.x + ob.width && // player left edge before obstacle right edge
+                    player.x < ob.x + ob.width &&     // player left edge before obstacle right edge
                     player.x + player.width > ob.x && // player right edge after obstacle left edge
-                    player.y < ob.y + ob.height && // player top edge before obstacle bottom edge
-                    player.y + player.height > ob.y // player bottom edge after obstacle top edge
+                    player.y < ob.y + ob.height &&    // player top edge before obstacle bottom edge
+                    player.y + player.height > ob.y   // player bottom edge after obstacle top edge
                 ) {
                     die();
                 }
@@ -697,7 +683,7 @@
                     obstacles.splice(i, 1);
                 }
             }
-
+            
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.x += p.vx * dt;
@@ -707,294 +693,238 @@
             }
         }
 
-        async function die() { // Now async to await database check
-            gameState = STATE.DEAD;
-            playSound('death');
+        function draw(dt) {
+            ctx.clearRect(0, 0, width, height);
+
+            // Apply screen shake offset
+            let offsetX = 0;
+            let offsetY = 0;
+            if (screenShake > 0) {
+                offsetX = Math.random() * screenShake * 20 - screenShake * 10;
+                offsetY = Math.random() * screenShake * 20 - screenShake * 10;
+                screenShake -= dt;
+            }
+            ctx.save();
+            ctx.translate(offsetX, offsetY);
+
+
+            // 1. Draw Sky (Gradient)
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, height);
+            skyGradient.addColorStop(0, '#55aaff'); // Light Blue
+            skyGradient.addColorStop(1, '#aaffff'); // Pale Cyan
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, width, height);
             
-            // Stop Music
-            const bgm = document.getElementById('bgm');
-            if(bgm) {
-                bgm.pause();
-                bgm.currentTime = 0;
-            }
-
-            screenShake = 0.5; 
-            const finalScore = Math.floor(score);
-            document.getElementById('final-score').innerText = `SCORE: ${finalScore}`;
-            document.getElementById('game-over-screen').classList.remove('hidden');
-
-            // --- New Logic: Check if score is high enough for the leaderboard ---
-            const madeTopTen = await checkIfTopTen(finalScore);
-
-            if (madeTopTen) {
-                // Made the top 10: Show the submission form
-                document.getElementById('top-ten-message').classList.add('hidden'); 
-                document.getElementById('high-score-form').classList.remove('hidden'); 
-                document.getElementById('leaderboard-container').classList.add('hidden');
+            // 2. Draw Mountains (Procedural Background)
+            const mountainHeight = 100;
+            ctx.fillStyle = '#888888'; 
+            ctx.beginPath();
+            ctx.moveTo(0, height - GROUND_HEIGHT); 
+            
+            // Draw looping mountains
+            let x = 0;
+            const mountainOffset = (timeSinceStart * gameSpeed * 0.05) % MOUNTAIN_WIDTH;
+            for(let i = -1; i * MOUNTAIN_WIDTH < width + MOUNTAIN_WIDTH; i++) {
+                const startX = i * MOUNTAIN_WIDTH - mountainOffset;
                 
-                // Reset the submit button state
-                const submitBtn = document.getElementById('submit-score-btn');
-                submitBtn.disabled = false;
-                submitBtn.innerText = "SUBMIT";
-            } else {
-                // Did NOT make the top 10: Show message and leaderboard immediately
-                document.getElementById('top-ten-message').classList.remove('hidden'); 
-                document.getElementById('high-score-form').classList.add('hidden'); 
-                document.getElementById('leaderboard-container').classList.remove('hidden'); 
-                refreshLeaderboard(); // Populate the board right away
+                // Peak 1
+                ctx.lineTo(startX + MOUNTAIN_WIDTH * 0.2, height - GROUND_HEIGHT - mountainHeight * (0.5 + Math.sin(i * 1.5) * 0.1));
+                // Peak 2
+                ctx.lineTo(startX + MOUNTAIN_WIDTH * 0.6, height - GROUND_HEIGHT - mountainHeight * (1.0 + Math.cos(i * 1.2) * 0.1));
+                // End
+                ctx.lineTo(startX + MOUNTAIN_WIDTH, height - GROUND_HEIGHT);
             }
-            // -------------------------------------------------------------------
+            ctx.lineTo(width, height - GROUND_HEIGHT); 
+            ctx.closePath();
+            ctx.fill();
+
+            // 3. Draw Grass and Trees (Closer Background)
+            const treeHeight = 50;
+            ctx.fillStyle = '#00aa00'; // Dark Green Grass
+            ctx.fillRect(0, height - GROUND_HEIGHT, width, GROUND_HEIGHT);
+
+            ctx.fillStyle = '#007700'; // Darker Green Trees
+            const treeOffset = (timeSinceStart * gameSpeed * 0.1) % TREE_CLUSTER_WIDTH;
+            for(let i = -1; i * TREE_CLUSTER_WIDTH < width + TREE_CLUSTER_WIDTH; i++) {
+                const startX = i * TREE_CLUSTER_WIDTH - treeOffset;
+                
+                // Tree 1
+                ctx.beginPath();
+                ctx.moveTo(startX + 50, height - GROUND_HEIGHT);
+                ctx.lineTo(startX + 70, height - GROUND_HEIGHT - treeHeight * 0.5);
+                ctx.lineTo(startX + 90, height - GROUND_HEIGHT);
+                ctx.fill();
+                
+                // Tree 2
+                ctx.beginPath();
+                ctx.moveTo(startX + 150, height - GROUND_HEIGHT);
+                ctx.lineTo(startX + 170, height - GROUND_HEIGHT - treeHeight);
+                ctx.lineTo(startX + 190, height - GROUND_HEIGHT);
+                ctx.fill();
+                
+                // Tree 3 (Bush)
+                ctx.beginPath();
+                ctx.arc(startX + 300, height - GROUND_HEIGHT - treeHeight * 0.2, 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 4. Draw Obstacles (Foreground)
+            obstacles.forEach(ob => {
+                let sprite;
+                if (ob.type === 'block' || ob.type === 'highBarrier') {
+                    sprite = sprites.block;
+                    
+                    // For blocks, we might need to tile the sprite vertically
+                    const numBlocks = Math.round(ob.height / ob.width); 
+                    for(let i = 0; i < numBlocks; i++) {
+                        ctx.drawImage(
+                            sprite, 
+                            ob.x, 
+                            ob.y + ob.height - (i + 1) * ob.width, 
+                            ob.width, 
+                            ob.width
+                        );
+                    }
+                } else if (ob.type === 'toilet') {
+                    sprite = sprites.toilet;
+                    ctx.drawImage(sprite, ob.x, ob.y, ob.width, ob.height);
+                } else if (ob.type === 'cheese') {
+                    sprite = sprites.cheese;
+                    ctx.drawImage(sprite, ob.x, ob.y, ob.width, ob.height);
+                }
+            });
+
+
+            // 5. Draw Player
+            ctx.drawImage(sprites.terry, player.x, player.y, player.width, player.height);
+            
+            // 6. Draw Particles
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 0.5;
+                ctx.fillRect(p.x, p.y, 4, 4);
+                ctx.globalAlpha = 1.0;
+            });
+            
+            ctx.restore(); // End screen shake translation
+            
+            // Draw foreground ground line
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, height - GROUND_HEIGHT, width, 5);
+        }
+
+        function loop(timestamp) {
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            update(dt);
+            draw(dt);
+
+            if (gameState !== STATE.DEAD) {
+                requestAnimationFrame(loop);
+            }
+        }
+
+        function startGame() {
+            // Check if audio context is suspended and try to resume it on user interaction
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(e => console.log('Audio resume error:', e));
+            }
+
+            // Play BGM
+            const bgm = document.getElementById('bgm');
+            if(bgm) bgm.play().catch(e => console.log('BGM play error:', e));
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            
+            resetGame();
+            gameState = STATE.PLAY;
+            
+            // Restart the loop if it was stopped
+            lastTime = performance.now();
+            requestAnimationFrame(loop);
+        }
+
+        function updateStaminaUI() {
+            const fill = document.getElementById('jump-meter-fill');
+            const percent = player.cooldown / player.maxCooldown;
+            fill.style.width = `${percent * 100}%`;
+            
+            if (percent === 1) {
+                fill.style.backgroundColor = '#00ff00';
+            } else if (percent > 0.5) {
+                 fill.style.backgroundColor = '#ffcc00';
+            } else {
+                 fill.style.backgroundColor = '#ff5555';
+            }
         }
 
         function jump() {
             if (gameState !== STATE.PLAY) return;
 
             if (player.grounded) {
+                // Initial jump
                 player.vy = player.jumpForce;
-                player.jumps = 1;
                 player.grounded = false;
+                player.jumps = 1;
                 playSound('jump');
-                createParticles(player.x + player.width/2, player.y + player.height, '#fff', 5);
-            } else if (player.jumps === 1 && player.cooldown >= player.maxCooldown) {
-                // Double jump ONLY if cooldown is full
+                // Kick up some particles
+                createParticles(player.x + player.width / 2, height - GROUND_HEIGHT, '#444', 5);
+            } else if (player.jumps === 1 && player.cooldown === player.maxCooldown) {
+                // Double jump
                 player.vy = player.doubleJumpForce;
                 player.jumps = 2;
-                player.cooldown = 0; // Empty bar completely
-                updateStaminaUI();
+                player.cooldown = 0;
                 playSound('doubleJump');
-                createParticles(player.x + player.width/2, player.y + player.height, '#00ff00', 10);
+                // Create double jump "puff"
+                createParticles(player.x + player.width / 2, player.y + player.height / 2, '#fff', 10);
             }
         }
 
-        function updateStaminaUI() {
-            const bar = document.getElementById('jump-meter-fill');
-            bar.style.width = `${player.cooldown}%`;
-            // Red when empty/filling, Green when ready
-            bar.style.backgroundColor = player.cooldown >= player.maxCooldown ? '#00ff00' : '#ff0000';
-        }
-
-        // --- BACKGROUND RENDERING UTILS ---
-        
-        // Helper function for drawing seamless, repeating background elements
-        function drawRepeatingBackground(drawFunc, speed, tileWidth, floorY) {
-            const offset = (timeSinceStart * speed) % tileWidth;
-            let x = -offset;
-            // Draw tiles until the screen is covered
-            while (x < width) {
-                drawFunc(ctx, x, floorY);
-                x += tileWidth;
-            }
-        }
-
-        // Draw a single mountain tile
-        function drawVoxelMountain(c, x, floorY) {
-            c.fillStyle = '#551A8B'; 
-            const size = 30; // Reduced size
-            for (let r = 0; r < 5; r++) {
-                for (let cx = 0; cx <= r; cx++) {
-                    let px = x + 150 + (cx * size) - (r * size / 2); // Adjusted position
-                    let py = floorY - 150 + (r * size); // Adjusted position
-                    c.fillRect(px, py, size, size);
-                }
-            }
-        }
-
-        // Draw a single tree cluster tile
-        function drawVoxelTree(c, x, floorY) {
-            // Tree 1 (Smaller)
-            c.fillStyle = '#553311';
-            c.fillRect(x + 40, floorY - 45, 15, 45);
-            c.fillStyle = '#228822';
-            c.fillRect(x + 15, floorY - 75, 75, 30); 
-            c.fillRect(x + 30, floorY - 95, 30, 20); 
-            
-            // Tree 2 (further back, smaller)
-            c.fillStyle = '#553311';
-            c.fillRect(x + 250, floorY - 30, 10, 30);
-            c.fillStyle = '#228822';
-            c.fillRect(x + 230, floorY - 60, 50, 25); 
-            c.fillRect(x + 240, floorY - 75, 25, 15); 
-        }
-
-        // --- RENDER ---
-
-        function draw() {
-            // Screen Shake must be applied before drawing starts
-            if (screenShake > 0) {
-                const shakeX = (Math.random() - 0.5) * 20;
-                const shakeY = (Math.random() - 0.5) * 20;
-                canvas.style.transform = `translate(${shakeX}px, ${shakeY}px)`;
-            } else {
-                canvas.style.transform = `none`;
-            }
-
-            // Sky
-            ctx.fillStyle = '#87CEEB';
-            ctx.fillRect(0, 0, width, height);
-            
-            // Mountains 
-            drawRepeatingBackground(drawVoxelMountain, 20, MOUNTAIN_WIDTH, height - GROUND_HEIGHT);
-
-            // Trees 
-            drawRepeatingBackground(drawVoxelTree, 150, TREE_CLUSTER_WIDTH, height - GROUND_HEIGHT);
-
-            // Ground (Uses new constant)
-            ctx.fillStyle = '#44aa44'; // Green grass/top layer
-            ctx.fillRect(0, height - GROUND_HEIGHT, width, GROUND_HEIGHT);
-            ctx.fillStyle = '#553311'; // Brown dirt/bottom layer (now thicker)
-            // Adjust the fill height to be based on the new GROUND_HEIGHT
-            ctx.fillRect(0, height - GROUND_HEIGHT * 0.7, width, GROUND_HEIGHT * 0.7); 
-
-            // Obstacles
-            obstacles.forEach(ob => {
-                if (ob.type === 'block' || ob.type === 'highBarrier') {
-                    // Draw multiple blocks for tall structures (highBarrier)
-                    const blockSprite = sprites.block;
-                    let currentY = ob.y;
-                    while (currentY < ob.y + ob.height) {
-                        ctx.drawImage(blockSprite, ob.x, currentY);
-                        currentY += blockSprite.height;
-                    }
-                } else if (ob.type === 'toilet') {
-                    ctx.drawImage(sprites.toilet, ob.x, ob.y);
-                } else if (ob.type === 'cheese') {
-                    ctx.drawImage(sprites.cheese, ob.x, ob.y);
-                }
-            });
-
-            // Player
-            let bob = 0;
-            if (gameState === STATE.PLAY && player.grounded) {
-                bob = Math.sin(timeSinceStart * 20) * 2;
-            }
-            
-            ctx.save();
-            ctx.translate(player.x + player.width/2, player.y + player.height/2);
-            if (!player.grounded) {
-                // Reduced rotation on jump to look better on smaller sprite
-                ctx.rotate(Math.min(Math.PI/6, player.vy * 0.001)); 
-            }
-            ctx.drawImage(sprites.terry, -player.width/2, -player.height/2 + bob);
-            ctx.restore();
-
-            // Particles
-            particles.forEach(p => {
-                ctx.fillStyle = p.color;
-                ctx.fillRect(p.x, p.y, 4, 4);
-            });
-        }
-
-        function loop(timestamp) {
-            let dt = (timestamp - lastTime) / 1000;
-            lastTime = timestamp;
-            if (dt > 0.1) dt = 0.1; 
-
-            if (screenShake > 0) screenShake -= dt;
-
-            update(dt);
-            draw();
-            requestAnimationFrame(loop);
-        }
-
-        // --- INPUTS ---
-        
-        function handleInput(e) {
-            // Prevent default touch/click behavior if it wasn't on a UI element
-            if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
-                 if (e.type === 'touchstart') e.preventDefault();
-            }
-            
-            if (gameState === STATE.PLAY) {
-                jump();
-            }
-        }
-
-        const startBtn = document.getElementById('start-btn');
-        if(startBtn) startBtn.addEventListener('click', startGame);
-
-        const restartBtn = document.getElementById('restart-btn');
-        if(restartBtn) restartBtn.addEventListener('click', () => {
-             document.getElementById('game-over-screen').classList.add('hidden');
-             startGame();
-        });
-
-        const submitBtn = document.getElementById('submit-score-btn');
-        if(submitBtn) submitBtn.addEventListener('click', submitScore);
-        
-        // Use document for general input handling when game is active
-        window.addEventListener('mousedown', (e) => {
-            // Only respond to clicks outside of the menu buttons/inputs
-            if (gameState === STATE.PLAY) {
-                handleInput(e);
-            }
-        });
-        window.addEventListener('touchstart', (e) => {
-            // Only respond to touches outside of the menu buttons/inputs
-            if (gameState === STATE.PLAY) {
-                 handleInput(e);
-            }
-        }, {passive: false});
-
-        async function startGame() {
-            document.getElementById('start-screen').classList.add('hidden');
-            gameState = STATE.PLAY;
-            resetGame();
-            
-            // Resume/Start AudioContext on first user interaction
-            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(e => {});
-            
-            // Start Music
+        async function die() { // Now async to await database check
+            gameState = STATE.DEAD;
+            playSound('death');
+            // Stop Music
             const bgm = document.getElementById('bgm');
-            if(bgm) {
-                bgm.currentTime = 0;
-                bgm.play().catch(e => console.log("Music play blocked:", e));
-            }
-            
-            // Re-fetch leaderboard to update highscore holder on start
-            await refreshLeaderboard(true); 
-        }
+            if(bgm) { bgm.pause(); bgm.currentTime = 0; }
 
-        // Updated submitScore to use Promise.race for a 5-second timeout
-        async function submitScore() {
-            const name = document.getElementById('player-name').value.trim() || "UNK";
-            const btn = document.getElementById('submit-score-btn');
-            
-            btn.disabled = true;
-            btn.innerText = "SAVING...";
+            screenShake = 0.5;
+            const finalScore = Math.floor(score);
+            document.getElementById('final-score').innerText = `SCORE: ${finalScore}`;
 
-            // Create a promise that resolves to 'false' after 5 seconds (the timeout)
-            const timeoutPromise = new Promise(resolve => 
-                setTimeout(() => resolve(false), 5000)
-            );
-            
-            let success = false;
-            try {
-                // Race the score submission against the timeout
-                const scorePromise = saveScore(name, Math.floor(score));
-                success = await Promise.race([scorePromise, timeoutPromise]);
-            } catch (e) {
-                // If there's an unexpected error during the submission process
-                console.error("Submission promise failed:", e);
-                success = false;
-            }
-            
-            // After submission, hide the form and show the leaderboard
+            // Check if score is high enough
+            const isTopTen = await checkIfTopTen(finalScore);
+
+            // Hide the submission form and message initially
             document.getElementById('high-score-form').classList.add('hidden');
-            document.getElementById('leaderboard-container').classList.remove('hidden');
+            document.getElementById('top-ten-message').classList.add('hidden');
             
-            if (success) {
-                refreshLeaderboard(false); // Update leaderboard list
+            if (isTopTen) {
+                document.getElementById('high-score-form').classList.remove('hidden');
+                document.getElementById('player-name').focus();
             } else {
-                 // If submission failed, show the board, but notify the user
-                 const tbody = document.getElementById('leaderboard-body');
-                 tbody.innerHTML = '<tr><td colspan="2" style="color:#ff0000;">SAVE FAILED. VIEWING CURRENT LEADERBOARD.</td></tr>';
-                 refreshLeaderboard(false);
+                document.getElementById('top-ten-message').innerText = `A noble attempt! Only the top 10 are recorded. Your score: ${finalScore}`;
+                document.getElementById('top-ten-message').classList.remove('hidden');
             }
-        }
 
+            // Show game over screen
+            document.getElementById('game-over-screen').classList.remove('hidden');
+            
+            // --- FIX: Ensure leaderboard is fetched and displayed ---
+            await refreshLeaderboard(false); 
+            document.getElementById('leaderboard-container').classList.remove('hidden');
+            // --------------------------------------------------------
+        }
+        
+        /**
+         * Fetches and renders the leaderboard.
+         * @param {boolean} updateTopHolder - If true, only updates the single highscore holder text.
+         */
         async function refreshLeaderboard(updateTopHolder = true) {
             const tbody = document.getElementById('leaderboard-body');
-            // Don't show loading on screen if we are just fetching the top holder
+            
+            // Show loading state if we are updating the full table
             if (!updateTopHolder) { 
                 tbody.innerHTML = '<tr><td colspan="2">LOADING...</td></tr>';
             }
@@ -1025,9 +955,45 @@
             }
         }
 
-        // Initialize the game loop
-        lastTime = performance.now();
-        requestAnimationFrame(loop);
+        // --- EVENT LISTENERS ---
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', startGame);
+        
+        // Primary jump controls (touch/click)
+        canvas.addEventListener('mousedown', jump);
+        canvas.addEventListener('touchstart', jump);
+
+        // --- NEW FEATURE: Space Bar Jump for PC ---
+        window.addEventListener('keydown', (e) => {
+            // Check if game is playing, key is Space (key === ' ' or keyCode 32), and prevent repeating jumps on hold
+            if (gameState === STATE.PLAY && (e.key === ' ' || e.keyCode === 32) && !e.repeat) {
+                e.preventDefault(); // Stop the space bar from scrolling the page
+                jump();
+            }
+        });
+        // -------------------------------------------
+        
+        document.getElementById('submit-score-btn').addEventListener('click', async () => {
+            const nameInput = document.getElementById('player-name');
+            const name = nameInput.value.trim() || 'NONAME';
+            
+            // Save the score
+            const success = await saveScore(name, Math.floor(score));
+
+            // Hide the form regardless of success
+            document.getElementById('high-score-form').classList.add('hidden');
+            document.getElementById('top-ten-message').innerText = success 
+                ? "SCORE SUBMITTED! CHECK THE BOARD." 
+                : "ERROR SUBMITTING SCORE. TRY AGAIN.";
+            document.getElementById('top-ten-message').classList.remove('hidden');
+            
+            // Refresh the displayed leaderboard to include the new score
+            await refreshLeaderboard(false); 
+        });
+
+        // Initialize the game loop (The lines below were removed to fix the jump issue)
+        // lastTime = performance.now();
+        // requestAnimationFrame(loop);
 
         // Populate the mock leaderboard and get the initial highscore holder on load
         refreshLeaderboard();
