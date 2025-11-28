@@ -126,7 +126,8 @@
             background: #ff0000;
             border: 4px solid #fff;
             color: white;
-            font-family: 'Press Start +2P', cursive; 
+            /* FIX: Corrected font name for blocky look */
+            font-family: 'Press Start 2P', cursive; 
             font-size: 20px;
             padding: 15px 30px;
             cursor: pointer;
@@ -178,7 +179,6 @@
 <body>
 
     <audio id="bgm" loop>
-        <!-- In a real deployment, you would need to host an audio file here -->
         <source src="donnie.mp3" type="audio/mpeg">
     </audio>
 
@@ -212,14 +212,21 @@
                 AVOID TOILETS, CUBES, AND HIGH BARRIERS!
             </div>
             <button id="start-btn">RUN TERRY RUN</button>
+
+            <div id="start-leaderboard-container">
+                <p style="color: #00ff00; margin-top: 10px;">TOP 10 SURVIVORS</p>
+                <table id="start-leaderboard-table">
+                    <thead><tr><th>NAME</th><th>SCORE</th></tr></thead>
+                    <tbody id="start-leaderboard-body">
+                        </tbody>
+                </table>
+            </div>
         </div>
 
         <div id="game-over-screen" class="menu-screen hidden">
             <h1 style="color: #ff5555;">TERRY'S WATER BROKE!</h1>
             <p id="final-score">SCORE: 0</p>
             
-            <!-- Removed 'top-ten-message' element entirely as requested -->
-
             <div id="high-score-form" class="hidden">
                 <p>YOU MADE THE TOP 10! ENTER NAME (MAX 10):</p>
                 <input type="text" id="player-name" maxlength="10" placeholder="YOUR NAME">
@@ -227,14 +234,13 @@
                 <button id="submit-score-btn">SUBMIT</button>
             </div>
             
-            <!-- PLAY AGAIN button placed higher up and margin-top removed for better flow -->
             <button id="restart-btn">PLAY AGAIN</button>
 
-            <div id="leaderboard-container" class="hidden">
+            <div id="gameover-leaderboard-container" class="hidden">
                 <p style="color: #00ff00; margin-top: 10px;">TOP 10 SURVIVORS</p>
-                <table id="leaderboard-table">
+                <table id="gameover-leaderboard-table">
                     <thead><tr><th>NAME</th><th>SCORE</th></tr></thead>
-                    <tbody id="leaderboard-body"></tbody>
+                    <tbody id="gameover-leaderboard-body"></tbody>
                 </table>
             </div>
         </div>
@@ -835,6 +841,9 @@
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('game-over-screen').classList.add('hidden');
             
+            // ADDED: Hide the leaderboard on the start screen when the game starts
+            document.getElementById('start-leaderboard-container').classList.add('hidden');
+
             resetGame();
             gameState = STATE.PLAY;
             
@@ -909,19 +918,22 @@
             // Show game over screen
             document.getElementById('game-over-screen').classList.remove('hidden');
             
-            // Refresh and display the leaderboard 
-            await refreshLeaderboard(false); 
-            document.getElementById('leaderboard-container').classList.remove('hidden');
+            // Refresh and display the game-over leaderboard 
+            await refreshLeaderboard(false, 'gameover'); 
+            document.getElementById('gameover-leaderboard-container').classList.remove('hidden');
         }
         
         /**
          * Fetches and renders the leaderboard.
          * @param {boolean} updateTopHolder - If true, only updates the single highscore holder text.
+         * @param {string} targetScreen - 'start' or 'gameover' to determine which table to update.
          */
-        async function refreshLeaderboard(updateTopHolder = true) {
-            const tbody = document.getElementById('leaderboard-body');
+        async function refreshLeaderboard(updateTopHolder = true, targetScreen = 'start') {
+            const startTbody = document.getElementById('start-leaderboard-body');
+            const gameoverTbody = document.getElementById('gameover-leaderboard-body');
+            const tbody = targetScreen === 'start' ? startTbody : gameoverTbody;
             
-            // Show loading state if we are updating the full table
+            // Only show loading state if we are updating the full table
             if (!updateTopHolder) { 
                 tbody.innerHTML = '<tr><td colspan="2">LOADING...</td></tr>';
             }
@@ -935,8 +947,8 @@
                 document.getElementById('highscore-holder').innerText = holderText;
             }
 
-            // Only update the table body if we are on the game over screen
-            if (!updateTopHolder) {
+            // Update the table body based on the target screen
+            if (!updateTopHolder || targetScreen === 'start') {
                 tbody.innerHTML = '';
                 scores.forEach((s, index) => {
                     const tr = document.createElement('tr');
@@ -987,11 +999,12 @@
             document.getElementById('high-score-form').classList.add('hidden');
             
             // Refresh the displayed leaderboard to include the new score
-            await refreshLeaderboard(false); 
+            await refreshLeaderboard(false, 'gameover'); 
         });
 
         // Populate the mock leaderboard and get the initial highscore holder on load
-        refreshLeaderboard();
+        // UPDATED to ensure start-screen leaderboard is also populated
+        refreshLeaderboard(true, 'start');
     </script>
 </body>
 </html>
