@@ -129,7 +129,7 @@
             background: #ff0000;
             border: 4px solid #fff;
             color: white;
-            font-family: 'Press Start 2P', cursive; 
+            font-family: 'Press Start +2P', cursive; 
             font-size: 20px;
             padding: 15px 30px;
             cursor: pointer;
@@ -210,7 +210,7 @@
             <h1>TERRY MPREG</h1>
             <p style="color:#aaa; font-size: 12px; margin-bottom: 20px;">BRAIN DAMAGED GAMES</p>
             <div style="font-size: 12px; line-height: 1.8; margin-bottom: 30px; max-width: 600px; padding: 0 20px;">
-                TAP TO JUMP. DOUBLE TAP TO DOUBLE JUMP (BAR MUST BE FULL).<br>
+                TAP TO JUMP. TAP AGAIN TO DOUBLE JUMP (BAR MUST BE FULL).<br>
                 AVOID TOILETS, CUBES, AND HIGH BARRIERS!
             </div>
             <button id="start-btn">RUN TERRY RUN</button>
@@ -231,7 +231,7 @@
                 <button id="submit-score-btn">SUBMIT</button>
             </div>
             
-            <!-- REARRANGED: Play Again button moved to appear above the leaderboard container -->
+            <!-- PLAY AGAIN button moved to appear above the leaderboard container -->
             <button id="restart-btn" style="margin-top: 20px;">PLAY AGAIN</button>
 
             <div id="leaderboard-container" class="hidden">
@@ -240,7 +240,6 @@
                     <thead><tr><th>NAME</th><th>SCORE</th></tr></thead>
                     <tbody id="leaderboard-body"></tbody>
                 </table>
-                <!-- REARRANGED: Play Again button removed from here -->
             </div>
         </div>
     </div>
@@ -530,9 +529,9 @@
         let screenShake = 0;
         let topScoreHolder = 'NONE'; // State for highscore name
         
-        // --- NEW: Double-Tap detection variables ---
-        let lastTapTime = 0;
-        const DOUBLE_TAP_TIMEOUT = 300; // milliseconds
+        // --- REMOVED: Double-Tap detection variables ---
+        // let lastTapTime = 0;
+        // const DOUBLE_TAP_TIMEOUT = 300; // milliseconds
         // -------------------------------------------
 
         function resetGame() {
@@ -868,76 +867,31 @@
             }
         }
 
+        // MODIFIED: Jump function now accepts any click/tap/space event
         function jump() {
             if (gameState !== STATE.PLAY) return;
 
             if (player.grounded) {
-                // Initial jump
+                // Initial jump (always works if grounded)
                 player.vy = player.jumpForce;
                 player.grounded = false;
                 player.jumps = 1;
                 playSound('jump');
                 // Kick up some particles
                 createParticles(player.x + player.width / 2, height - GROUND_HEIGHT, '#444', 5);
-                return 'single'; // Indicate a single jump occurred
             } else if (player.jumps === 1 && player.cooldown === player.maxCooldown) {
-                // Double jump
+                // Double jump (works if airborne and cooldown is ready, regardless of timing)
                 player.vy = player.doubleJumpForce;
                 player.jumps = 2;
                 player.cooldown = 0;
                 playSound('doubleJump');
                 // Create double jump "puff"
                 createParticles(player.x + player.width / 2, player.y + player.height / 2, '#fff', 10);
-                return 'double'; // Indicate a double jump occurred
             }
-            return 'none';
         }
         
-        // --- NEW FUNCTION: Handles click and double-tap logic ---
-        function handleTap() {
-            const now = performance.now();
-            let action = 'single'; // Default action is single jump
-
-            if (now - lastTapTime < DOUBLE_TAP_TIMEOUT && lastTapTime !== 0) {
-                // If this tap happens quickly after the last one, treat it as a double tap
-                action = 'double';
-                lastTapTime = 0; // Reset last tap time to prevent triple taps from a single event
-            } else {
-                // This is the first tap in a sequence
-                lastTapTime = now;
-            }
-
-            if (gameState !== STATE.PLAY) {
-                // In menu state, we always reset the timer and don't process jumps
-                lastTapTime = 0;
-                return;
-            }
-            
-            if (player.grounded) {
-                // Always allow a single jump on the ground for a tap
-                jump();
-                // We reset the timer here so the second tap for double jump is correctly registered
-                // if they are tapping quickly.
-                lastTapTime = now;
-            } else if (!player.grounded && action === 'double') {
-                // Only allow double jump if user explicitly double-tapped AND is airborne
-                const result = jump();
-                if (result === 'double') {
-                    // Double jump succeeded, reset timer
-                    lastTapTime = 0; 
-                }
-            } else if (!player.grounded && action === 'single') {
-                 // Ignore single taps in the air to prevent unwanted double jumps
-                 // but keep the lastTapTime set in case the next tap completes the double tap.
-            }
-        }
-
-        // --- OLD JUMP FUNCTION (renamed to singleJump) --
-        /* The original `jump` logic is now integrated into `handleTap` and the renamed `jump` 
-           function now only handles the state change and effects.
-        */
-        // --------------------------------------------------
-
+        // --- REMOVED: handleTap function ---
+        
         async function die() { // Now async to await database check
             gameState = STATE.DEAD;
             playSound('death');
@@ -1018,26 +972,25 @@
         document.getElementById('start-btn').addEventListener('click', startGame);
         document.getElementById('restart-btn').addEventListener('click', startGame);
         
-        // Primary jump controls (click)
-        // Now using handleTap for both mouse and touch for cleaner logic.
-        canvas.addEventListener('mousedown', handleTap); 
+        // MODIFIED: Primary jump controls (click) now call jump() directly
+        canvas.addEventListener('mousedown', jump); 
         
-        // Touch events
+        // MODIFIED: Touch events now call jump() directly
         canvas.addEventListener('touchstart', (e) => {
             // Prevent default touch behavior (like scrolling/pull-to-refresh)
             e.preventDefault(); 
-            // Check if multiple fingers are touching. If so, ignore to prevent accidental double-jumps.
+            // Only allow single-finger taps to register a jump
             if (e.touches.length === 1) {
-                handleTap();
+                jump();
             }
         });
 
         // --- EXISTING FEATURE: Space Bar Jump for PC ---
         window.addEventListener('keydown', (e) => {
-            // Spacebar press for a single jump (PC users typically expect a single press)
+            // Spacebar press
             if (gameState === STATE.PLAY && (e.key === ' ' || e.keyCode === 32) && !e.repeat) {
                 e.preventDefault(); 
-                jump(); // The jump function still handles the logic for ground jump / airborne double jump
+                jump(); // Jump function handles single or double jump based on state
             }
         });
         // -------------------------------------------
