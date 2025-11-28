@@ -157,7 +157,7 @@
         }
 
         table {
-            /* MODIFICATION: Centered the table and increased max width to 350px to fit names */
+            /* Kept centered and wide enough to fit names */
             margin: 20px auto; 
             border-collapse: collapse;
             width: 70%;
@@ -166,11 +166,12 @@
             border: 2px solid white;
         }
         th, td {
-            padding: 10px;
+            /* MODIFICATION: Reduced padding from 10px to 3px to shrink row height by ~70% */
+            padding: 3px 10px; 
             text-align: left;
             border-bottom: 1px solid #555;
-            /* Font Size: Kept at 8px */
-            font-size: 8px;
+            /* MODIFICATION: Reduced font size from 8px to 6px */
+            font-size: 6px;
         }
         th { color: #ffff00; }
         td:nth-child(2) { text-align: right; }
