@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Slappy Turd | Brain Damaged Games</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        :root {
+            --bg-color: #222;
+            --phone-bezel: #111;
+            --ui-font: 'Press Start 2P', cursive;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            /* FIX: Added system font fallbacks to correctly render emojis */
+            font-family: var(--ui-font), 'Segoe UI Emoji', 'Segoe UI Symbol', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        /* PHONE SIMULATION CONTAINER - Adjusted for larger game area */
+        #phone-frame {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (min-width: 500px) {
+            #phone-frame {
+                /* Set a reasonable size for desktop play, larger than before */
+                width: 450px; 
+                height: 90vh;
+                border-radius: 40px;
+                border: 12px solid var(--phone-bezel);
+            }
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        /* UI LAYERS */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .hud-top {
+            position: absolute;
+            top: 40px;
+            left: 20px;
+            color: #ffffff;
+            text-shadow: 3px 3px 0 #000;
+            font-size: 20px;
+            z-index: 10;
+        }
+        
+        /* Display for the #1 player */
+        #top-player-hud {
+            position: absolute;
+            top: 70px; /* Below the current score */
+            left: 20px;
+            color: #ffcc00; /* Gold color for top score */
+            text-shadow: 2px 2px 0 #000;
+            font-size: 10px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+
+        .control-hint {
+            position: absolute;
+            bottom: 80px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 10px;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* SCREENS */
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(86, 60, 36, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 100;
+            backdrop-filter: blur(4px);
+        }
+
+        h1 {
+            color: #ffcc00;
+            text-shadow: 4px 4px 0 #5c3a1e;
+            font-size: 42px;
+            text-align: center;
+            line-height: 1.2;
+            margin: 0 0 20px 0;
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: #ddd;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.6;
+            max-width: 80%;
+        }
+
+        .btn {
+            background: #ff4444;
+            border: 4px solid #fff;
+            color: #fff;
+            padding: 20px 30px;
+            font-family: var(--ui-font);
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #990000;
+            transition: transform 0.1s;
+            text-transform: uppercase;
+            margin-top: 20px;
+            margin-bottom: 10px; /* Adjusted for better spacing in game over */
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #990000;
+        }
+
+        .hidden { display: none !important; }
+
+        /* VIGNETTE */
+        .scanlines {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        #high-score-list-start {
+            color: #fff; 
+            margin: 10px 0; 
+            font-size: 10px; 
+            text-align: left; 
+            max-width: 85%; 
+            width: 280px;
+            background: rgba(0,0,0,0.5);
+            border: 2px solid #ffcc00;
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+        }
+        #high-score-list-start ol {
+            padding-left: 20px; 
+            list-style-type: none;
+            margin: 0;
+        }
+        #high-score-list-start li {
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed #555;
+            padding-bottom: 2px;
+        }
+        
+        .float-text {
+            position: absolute;
+            color: yellow;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
+            pointer-events: none;
+            animation: floatUp 1s forwards;
+            font-size: 20px;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.2); opacity: 0; }
+        }
+
+        .split-divider {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: rgba(255,255,255,0.1);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="phone-frame">
+    <canvas id="gameCanvas"></canvas>
+    <div class="scanlines"></div>
+    <div class="split-divider"></div>
+
+    <div id="ui-layer">
+        <div class="hud-top">
+            SCORE: <span id="score-display">0</span>
+        </div>
+        <div id="top-player-hud">
+            醇 TOP: <span id="top-player-name">---</span> (<span id="top-player-score">0</span>)
+        </div>
+        <div class="control-hint">
+            &larr; TAP LEFT | TAP RIGHT &rarr;
+            <br><span style="color:#ff4444;">DON'T TOUCH THE FIRE!</span>
+        </div>
+        <div id="effects-container"></div>
+    </div>
+
+    <div id="start-screen">
+        <div style="font-size:60px; margin-bottom:10px;">朝</div>
+        <h1>SLAPPY<br>TURD</h1>
+        <p class="subtitle">TAP LEFT to go Left<br>TAP RIGHT to go Right<br>The floor is FIRE!</p>
+        
+        <div id="high-score-list-start">Loading Scores...</div>
+
+        <button class="btn" id="start-btn">PLAY</button>
+    </div>
+
+    <div id="game-over-screen" class="hidden">
+        <h1 style="color: #ff4444;">GAME OVER!</h1>
+        <p class="subtitle" id="death-msg">You burned.</p>
+        <p class="subtitle" style="font-size: 16px;">SCORE: <span id="final-score">0</span></p>
+        <button class="btn" id="restart-btn">RETRY</button>
+        <button class="btn" id="view-scores-btn" style="background:#555; box-shadow: 0 6px 0 #333;">VIEW HIGH SCORES</button>
+    </div>
+</div>
+
+<script type="importmap">
+    {
+        "imports": {
+            "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
+        }
+    }
+</script>
+
+<script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    // SUPABASE CONFIG (Dummy keys for demonstration)
+    const SUPABASE_URL = 'https://xybyjldasdstkvpagmdk.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'sb_publishable_5_B_Oh3Pcr-dppdUoxpGeg_oqRYKlCK';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- HIGH SCORE SYSTEM ---
+    const HighScoreSys = {
+        SCORE_TABLE: 'Highscores',
+        GAME_ID: 'SLAPPY_TURD',
+        MAX_SCORES: 10,
+        
+        loadScores: async function() {
+            try {
+                let { data: scores, error } = await supabase
+                    .from(this.SCORE_TABLE)
+                    .select('name, score')
+                    .eq('gamename', this.GAME_ID)
+                    .order('score', { ascending: false })
+                    .limit(this.MAX_SCORES);
+                if (error) throw error;
+                return scores || [];
+            } catch (e) {
+                console.error("Supabase Error:", e);
+                return []; 
+            }
+        },
+        
+        checkAndSaveScore: async function(name, score) {
+            const scores = await this.loadScores();
+            const scoreInt = Math.floor(score);
+            const qualifies = scores.length < this.MAX_SCORES || scoreInt > (scores.length > 0 ? scores[scores.length - 1].score : -1);
+
+            if (qualifies) {
+                const newScoreData = { 
+                    name: name.trim().substring(0, 15).toUpperCase(), 
+                    score: scoreInt,
+                    gamename: this.GAME_ID 
+                };
+                await supabase.from(this.SCORE_TABLE).insert([newScoreData]);
+                this.displayScores(); // Refresh all score displays after save
+            }
+        },
+        
+        displayScores: async function() {
+            const scores = await this.loadScores();
+            
+            // 1. Update the HUD for the top player
+            const topPlayerNameEl = document.getElementById('top-player-name');
+            const topPlayerScoreEl = document.getElementById('top-player-score');
+            if (scores.length > 0) {
+                topPlayerNameEl.innerText = scores[0].name;
+                topPlayerScoreEl.innerText = scores[0].score;
+            } else {
+                topPlayerNameEl.innerText = "---";
+                topPlayerScoreEl.innerText = "0";
+            }
+            
+            // Function to generate score list HTML
+            const generateHtml = (scores) => {
+                // EMOJI FIX: Replaced placeholder character with crown emoji
+                let html = '<strong>荘 GLOBAL TOP 10</strong><ol>';
+                if (scores.length === 0) html += '<li>No scores yet.</li>';
+                else scores.forEach((s, index) => html += `<li><span>${(index + 1)}. ${s.name}</span><span>${s.score}</span></li>`);
+                html += '</ol>';
+                return html;
+            };
+
+            // 2. Update the Start Screen list (the original location)
+            const listStartEl = document.getElementById('high-score-list-start');
+            listStartEl.innerHTML = generateHtml(scores);
+        }
+    };
+
+    // GAME ENGINE
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // PALETTE & SPRITES
+    const PALETTE = { 0: null, 1: '#4A3321', 2: '#6D4C31', 3: '#FFFFFF', 4: '#000000', 5: '#EAC0B5', 6: '#D68A85', 7: '#FF0000' };
+    const VOXEL_SIZE = 4; // Base size for background voxels
+
+    // Refined Background Colors (More subtle/muted)
+    const BG_PALETTE = {
+        SKY_LIGHT: '#B0E0E6',      // Powder Blue (subtle)
+        SKY_DARK: '#87CEFA',       // Light Sky Blue
+        CLOUD_LIGHT: '#F5F5F5',    // White Smoke
+        CLOUD_SHADOW: '#DCDCDC',   // Gainsboro
+        GRASS_FOREGROUND: '#6B8E23', // Olive Drab (more subtle)
+        GRASS_MID: '#556B2F',        // Dark Olive Green
+        GRASS_FAR: '#483C32',        // Taupe/Dirt (furthest layer)
+        TOILET_BASE: '#E0FFFF',       // Azure (Whiter porcelain)
+        TOILET_SHADOW: '#B0C4DE',     // Light Slate Gray
+        TREE_LEAVES: '#228B22',      // Forest Green
+        TREE_TRUNK: '#8B4513'        // Saddle Brown
+    };
+
+    const SPRITE_TURD = [
+        [0,0,0,0,0,1,1,0,0,0,0,0],
+        [0,0,0,0,1,2,2,1,0,0,0,0],
+        [0,0,0,1,2,2,2,2,1,0,0,0],
+        [0,0,1,2,2,1,1,2,2,1,0,0],
+        [0,1,2,2,1,2,2,1,2,2,1,0],
+        [1,2,2,2,2,2,2,2,2,2,2,1],
+        [1,2,2,3,3,2,2,3,3,2,2,1],
+        [1,2,2,3,4,2,2,3,4,2,2,1],
+        [1,2,2,2,2,2,2,2,2,2,2,1],
+        [1,2,2,2,2,4,4,2,2,2,2,1],
+        [0,1,2,2,4,7,7,4,2,2,1,0],
+        [0,0,1,1,1,1,1,1,1,1,0,0]
+    ];
+
+    const SPRITE_HAND = [
+        [0,0,0,6,5,5,0,0,0,6,5,5,0,0,0,0],
+        [0,0,0,6,5,5,0,0,0,6,5,5,0,0,0,0],
+        [0,0,0,6,5,5,0,0,0,6,5,5,0,6,5,5],
+        [0,0,0,6,5,5,0,0,0,6,5,5,0,6,5,5],
+        [6,5,5,6,5,5,0,0,0,6,5,5,0,6,5,5],
+        [6,5,5,6,5,5,6,5,5,6,5,5,0,6,5,5],
+        [6,5,5,6,5,5,6,5,5,6,5,5,0,6,5,5],
+        [6,5,5,6,5,5,6,5,5,6,5,5,0,6,5,5],
+        [0,6,5,5,5,5,5,5,5,5,5,5,5,5,5,0],
+        [0,0,6,5,5,5,5,5,5,5,5,5,5,5,0,0],
+        [0,0,0,6,5,5,5,5,5,5,5,5,5,0,0,0],
+        [0,0,0,0,6,5,5,5,5,5,5,5,0,0,0,0],
+        [0,0,0,0,6,5,5,5,5,5,5,0,0,0,0,0],
+        [0,0,0,0,6,5,5,5,5,5,5,0,0,0,0,0],
+        [0,0,0,0,6,5,5,5,5,5,5,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ];
+
+    let turdCanvas, handCanvas;
+
+    function renderSpriteToCanvas(matrix, scale) {
+        const c = document.createElement('canvas');
+        c.width = matrix[0].length * scale;
+        c.height = matrix.length * scale;
+        const cx = c.getContext('2d');
+        for(let y=0; y<matrix.length; y++) {
+            for(let x=0; x<matrix[y].length; x++) {
+                if(matrix[y][x] !== 0) {
+                    cx.fillStyle = PALETTE[matrix[y][x]];
+                    cx.fillRect(x*scale, y*scale, scale, scale);
+                }
+            }
+        }
+        return c;
+    }
+
+    // --- AUDIO SYSTEM ---
+    const AudioSys = {
+        ctx: null,
+        isInitialized: false,
+        
+        // --- AUDIO FILE OBJECTS ---
+        // New: Load the requested audio files from the same directory.
+        sfxFart: new Audio('fart.mp3'),
+        sfxScream: new Audio('scream.mp3'),
+        bgMusic: new Audio('hugh.mp3'),
+        
+        initAndUnlock: function() {
+            if (this.isInitialized) {
+                // Critical step for iOS: If context is suspended (can happen after backgrounding)
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume().catch(e => console.warn("Failed to resume AudioContext:", e));
+                }
+                return;
+            }
+            
+            try {
+                // Initialize context for flap/score tones only, not for mp3s
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                
+                // Attempt to resume the context immediately on first call
+                // This is the core fix to ensure the Web Audio API context is running on iOS
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume().catch(e => console.warn("Initial AudioContext resume failed:", e));
+                }
+
+                // Set music to loop
+                this.bgMusic.loop = true;
+                this.bgMusic.volume = 0.5; // Adjust volume as needed
+
+                // Attempt to play/pause silent audio for media unlock on mobile
+                const mediaElements = [this.sfxFart, this.sfxScream, this.bgMusic];
+                mediaElements.forEach(media => {
+                    media.play().catch(() => {}); // Attempt play
+                    media.pause(); // Immediately pause to stay silent
+                });
+
+                this.isInitialized = true;
+            } catch (e) {
+                console.warn("Audio Context Error:", e);
+                this.ctx = null;
+                this.isInitialized = true;
+            }
+        },
+
+        // Tone generation function (kept for sfxFlap and sfxScore)
+        playTone: function(freq, type, duration, vol=0.1) {
+            // Check if context is available AND running
+            if (!this.ctx || this.ctx.state !== 'running') return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        },
+        
+        // Re-implemented to use local fart.mp3
+        playFart: function() {
+            this.sfxFart.currentTime = 0;
+            this.sfxFart.play().catch(e => console.log("Fart audio blocked:", e));
+        },
+        
+        // Re-implemented to use local scream.mp3
+        playScream: function() {
+            this.sfxScream.currentTime = 0;
+            this.sfxScream.play().catch(e => console.log("Scream audio blocked:", e));
+        },
+        
+        // Re-implemented to use local hugh.mp3
+        playMusic: function() { 
+            this.bgMusic.play().catch(e => console.log("Music audio blocked:", e));
+        },
+        
+        // Re-implemented to stop hugh.mp3
+        stopMusic: function() { 
+            this.bgMusic.pause();
+            this.bgMusic.currentTime = 0;
+        },
+        
+        sfxFlap: () => AudioSys.playTone(350, 'square', 0.1, 0.05), 
+        sfxScore: () => AudioSys.playTone(600, 'sine', 0.2, 0.1),
+    };
+
+    // --- GAME STATE ---
+    let state = { 
+        running: false, 
+        score: 0, 
+        width: 0, 
+        height: 0, 
+        frames: 0,
+        bgScrollX: 0
+    };
+    // UPDATED: Reduced player radius from 18 to 15 for more forgiving collision
+    let player = { x: 50, y: 200, vx: 0, vy: 0, radius: 15, rot: 0 }; 
+    let hands = [];
+    let scrollSpeed = 2.5;
+
+    // --- PHYSICS CONSTANTS ---
+    const GRAVITY_Y = 0.4;    
+    const WIND_X = -0.15;     
+    const FLAP_X = 6.5;         
+    const FLAP_Y = -7;
+    const FIRE_HEIGHT = 60; // Height of the fire pit
+    // CONSTANT: Inset for hand collision box (smaller number = tighter hitbox)
+    const HAND_HITBOX_INSET = 8; 
+
+
+    // --- BACKGROUND ASSET DATA (Detailed/Dense) ---
+    const BACKGROUND_ASSETS = {
+        clouds: [
+            { layer: 1, x: 0.1, y: 0.2, scale: 2.5 },
+            { layer: 1, x: 0.5, y: 0.1, scale: 3 },
+            { layer: 1, x: 0.8, y: 0.3, scale: 1.8 },
+            { layer: 2, x: 0.3, y: 0.4, scale: 2 },
+            { layer: 2, x: 0.9, y: 0.5, scale: 2.5 },
+            { layer: 2, x: 0.7, y: 0.15, scale: 1.5 },
+        ],
+        toilets: [
+            // Layer 3: Distant Toilets 
+            { layer: 3, x: 0.05, y: 0.8, scale: 0.4, h: 40 },
+            { layer: 3, x: 0.4, y: 0.82, scale: 0.25, h: 30 },
+            { layer: 3, x: 0.75, y: 0.8, scale: 0.3, h: 35 },
+            // Layer 4: Mid-ground Toilets 
+            { layer: 4, x: 0.3, y: 0.75, scale: 0.6, h: 60 },
+            { layer: 4, x: 0.85, y: 0.7, scale: 0.5, h: 50 },
+        ],
+        trees: [
+            // Layer 2: Furthest Trees (slowest)
+            { layer: 2, x: 0.2, y: 0.8, scale: 0.7, h: 80 },
+            { layer: 2, x: 0.6, y: 0.85, scale: 0.5, h: 60 },
+            // Layer 3: Mid Trees
+            { layer: 3, x: 0.1, y: 0.7, scale: 1.0, h: 100 },
+            { layer: 3, x: 0.5, y: 0.75, scale: 0.8, h: 85 },
+        ],
+        // Parallax factors (lower number means further away/slower scrolling)
+        PARALLAX: {
+            1: 0.1, // Distant Clouds
+            2: 0.2, // Distant Trees / Far Grass
+            3: 0.4, // Distant Toilets / Mid Trees
+            4: 0.7, // Mid-ground Toilets
+            5: 1.0  // Hands, Player (Game Layer - relative to scrollSpeed)
+        }
+    };
+
+    function drawVoxelCloud(x, y, scale = 1) {
+        const p = VOXEL_SIZE * scale;
+        const L = BG_PALETTE.CLOUD_LIGHT;
+        const S = BG_PALETTE.CLOUD_SHADOW;
+        // More subtle, less blocky cloud pattern
+        const pattern = [
+            [0,0,S,L,L,L,S,0,0],
+            [0,L,L,L,L,L,L,S,0],
+            [L,L,L,L,L,L,L,L,S],
+            [L,L,L,L,L,L,L,S,0],
+            [0,S,S,L,L,S,0,0,0]
+        ];
+
+        for(let r=0; r < pattern.length; r++) {
+            for(let c=0; c < pattern[r].length; c++) {
+                if(pattern[r][c] !== 0) {
+                    ctx.fillStyle = pattern[r][c];
+                    ctx.fillRect(x + c * p, y + r * p, p, p);
+                }
+            }
+        }
+    }
+
+    function drawVoxelTree(x, y, height, scale) {
+        const p = VOXEL_SIZE * 0.8;
+        const L = BG_PALETTE.TREE_LEAVES;
+        const T = BG_PALETTE.TREE_TRUNK;
+        
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+
+        // Trunk
+        const trunkW = 10;
+        const trunkH = height * 0.3;
+        ctx.fillStyle = T;
+        ctx.fillRect(15, height - trunkH, trunkW, trunkH);
+
+        // Leaves (Simplified Voxel Triangle/Bush)
+        const crownH = height * 0.7;
+        const crownW = 50;
+        
+        ctx.fillStyle = L;
+        for(let r=0; r < 8; r++) {
+            const rowW = crownW * (1 - r/8);
+            const rowY = height - trunkH - r * (crownH/8);
+            ctx.fillRect(15 - rowW/2 + trunkW/2, rowY, rowW, crownH/8 + 2);
+        }
+        
+        ctx.restore();
+    }
+
+    function drawVoxelToilet(x, y, height, scale) {
+        const p = VOXEL_SIZE;
+        const W = BG_PALETTE.TOILET_BASE;
+        const G = BG_PALETTE.TOILET_SHADOW;
+        
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+
+        const baseH = height * 0.15;
+        const bowlH = height * 0.4;
+        const tankH = height * 0.45;
+        const bowlW = 30;
+        const tankW = 20;
+
+        // Base/Pedestal
+        ctx.fillStyle = W;
+        ctx.fillRect(5, 0, bowlW + 10, baseH);
+        ctx.fillStyle = G;
+        ctx.fillRect(5, 0, 5, baseH); 
+
+        // Bowl
+        ctx.fillStyle = W;
+        ctx.fillRect(0, baseH, bowlW + 20, bowlH);
+        ctx.fillStyle = G;
+        ctx.fillRect(0, baseH, 5, bowlH);
+        ctx.fillRect(bowlW + 15, baseH, 5, bowlH);
+
+        // Tank
+        ctx.fillStyle = W;
+        ctx.fillRect(10, baseH + bowlH, tankW, tankH);
+        ctx.fillStyle = G;
+        ctx.fillRect(10, baseH + bowlH, 5, tankH);
+
+        // Seat/Lid
+        ctx.fillStyle = G;
+        ctx.fillRect(5, baseH + bowlH*0.2, bowlW+10, 5); 
+
+        ctx.restore();
+    }
+
+    // Draw Background with Parallax (UPDATED for stable right-scrolling)
+    function drawBackground() {
+        const playableHeight = state.height - FIRE_HEIGHT;
+        const viewPortSpeed = scrollSpeed * 0.5;
+
+        state.bgScrollX -= viewPortSpeed; 
+
+        // 1. SKY (Static Gradient)
+        const skyGradient = ctx.createLinearGradient(0, 0, 0, playableHeight);
+        skyGradient.addColorStop(0, BG_PALETTE.SKY_LIGHT);
+        skyGradient.addColorStop(1, BG_PALETTE.SKY_DARK);
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, state.width, playableHeight);
+
+        // --- BACKGROUND ASSET LAYERS ---
+
+        // Layer 1: CLOUDS (Parallax 0.1)
+        const cloudParallaxFactor = BACKGROUND_ASSETS.PARALLAX[1];
+        const cloudOffset = (state.bgScrollX * cloudParallaxFactor) % (state.width * 2);
+
+        ctx.save();
+        ctx.translate(cloudOffset, 0); 
+        for (let i = 0; i < 2; i++) {
+            BACKGROUND_ASSETS.clouds.forEach(c => {
+                const x = c.x * state.width + i * state.width * 2; 
+                drawVoxelCloud(x, c.y * playableHeight, c.scale);
+            });
+        }
+        ctx.restore();
+        
+        // --- TERRAIN LAYERS ---
+        const horizonY = playableHeight * 0.85; 
+
+        // Layer 2: FAR GRASS/TREES (Parallax 0.2)
+        const grassParallaxFactor2 = BACKGROUND_ASSETS.PARALLAX[2];
+        const grassOffset2 = (state.bgScrollX * grassParallaxFactor2) % (VOXEL_SIZE * 50);
+        ctx.fillStyle = BG_PALETTE.GRASS_FAR;
+        ctx.beginPath();
+        ctx.moveTo(0, horizonY);
+        for (let x = -grassOffset2; x < state.width + VOXEL_SIZE * 50; x += VOXEL_SIZE * 5) {
+            const h = 5 + Math.sin(x * 0.05 + state.frames * 0.03) * 3;
+            ctx.lineTo(x, horizonY + h);
+            ctx.lineTo(x + VOXEL_SIZE * 2.5, horizonY + h + 2);
+        }
+        ctx.lineTo(state.width, playableHeight);
+        ctx.lineTo(0, playableHeight);
+        ctx.closePath();
+        ctx.fill();
+
+        // Layer 3: MID GRASS/TOILETS (Parallax 0.4)
+        const grassParallaxFactor3 = BACKGROUND_ASSETS.PARALLAX[3];
+        const grassOffset3 = (state.bgScrollX * grassParallaxFactor3) % (VOXEL_SIZE * 30);
+        ctx.fillStyle = BG_PALETTE.GRASS_MID;
+        ctx.beginPath();
+        ctx.moveTo(0, horizonY);
+        for (let x = -grassOffset3; x < state.width + VOXEL_SIZE * 30; x += VOXEL_SIZE * 4) {
+            const h = 10 + Math.sin(x * 0.08 + state.frames * 0.05) * 5;
+            ctx.lineTo(x, horizonY + h);
+            ctx.lineTo(x + VOXEL_SIZE * 2, horizonY + h + 4);
+        }
+        ctx.lineTo(state.width, playableHeight);
+        ctx.lineTo(0, playableHeight);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Render Trees on their layers
+        BACKGROUND_ASSETS.trees.forEach(t => {
+            const parallax = BACKGROUND_ASSETS.PARALLAX[t.layer];
+            const offset = (state.bgScrollX * parallax) % (state.width * 2);
+            for (let i = 0; i < 2; i++) {
+                const x = t.x * state.width + i * state.width * 2 + offset;
+                const y = playableHeight - t.h * t.scale;
+                drawVoxelTree(x, y, t.h, t.scale);
+            }
+        });
+
+        // Render Toilets on their layers
+        BACKGROUND_ASSETS.toilets.forEach(t => {
+            const parallax = BACKGROUND_ASSETS.PARALLAX[t.layer];
+            const offset = (state.bgScrollX * parallax) % (state.width * 2);
+            for (let i = 0; i < 2; i++) {
+                const x = t.x * state.width + i * state.width * 2 + offset;
+                const y = playableHeight - t.h * t.scale;
+                drawVoxelToilet(x, y, t.h, t.scale);
+            }
+        });
+
+        // Layer 5: FOREGROUND GRASS (Static/Minimal scroll)
+        const grassHeight = 20;
+        const grassY = playableHeight - grassHeight;
+        ctx.fillStyle = BG_PALETTE.GRASS_FOREGROUND;
+        ctx.fillRect(0, grassY, state.width, playableHeight - grassY);
+    }
+
+
+    function resize() {
+        const parent = document.getElementById('phone-frame');
+        canvas.width = parent.clientWidth;
+        canvas.height = parent.clientHeight;
+        state.width = canvas.width;
+        state.height = canvas.height;
+        const scale = Math.floor(state.width / 100); 
+        turdCanvas = renderSpriteToCanvas(SPRITE_TURD, Math.max(3, scale));
+        handCanvas = renderSpriteToCanvas(SPRITE_HAND, Math.max(3, scale * 1.5));
+    }
+
+    function initGame() {
+        resize();
+        state.score = 0;
+        scrollSpeed = 2.5;
+        player.x = state.width * 0.2;
+        player.y = state.height / 2;
+        player.vx = 0;
+        player.vy = 0;
+        player.rot = 0;
+        hands = [];
+        state.running = true;
+        state.frames = 0;
+        state.bgScrollX = 0;
+        
+        // Hide all screens, display HUD
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('game-over-screen').classList.add('hidden');
+        document.getElementById('ui-layer').classList.remove('hidden'); 
+
+        document.getElementById('score-display').innerText = "0";
+        document.getElementById('effects-container').innerHTML = '';
+
+        // Play Fart on game start/load
+        AudioSys.playFart();
+        
+        // Start Background Music
+        AudioSys.playMusic(); 
+
+        requestAnimationFrame(loop);
+    }
+
+    function spawnHand(gapCenterY) {
+        // Gap size decreases slightly with score
+        const gapSize = Math.max(160, 220 - (state.score * 2));
+
+        // Top hand position
+        hands.push({
+            x: state.width, y: gapCenterY - gapSize / 2 - handCanvas.height + 10, 
+            w: handCanvas.width, h: handCanvas.height, 
+            passed: false, isBottom: false, gapCenterY: gapCenterY
+        });
+        // Bottom hand position
+        hands.push({
+            x: state.width, y: gapCenterY + gapSize / 2 - 10,
+            w: handCanvas.width, h: handCanvas.height, 
+            passed: false, isBottom: true, gapCenterY: gapCenterY
+        });
+    }
+
+    function generateNewHandPair() {
+        // Hands only spawn above the fire line
+        const playableHeight = state.height - FIRE_HEIGHT;
+        const gapSize = Math.max(160, 220 - (state.score * 2));
+        const minGapY = gapSize / 2 + 50;
+        const maxGapY = playableHeight - gapSize / 2 - 20;
+        
+        if (maxGapY <= minGapY) {
+            const safeGapSize = playableHeight - 100;
+            const safeMinY = safeGapSize / 2 + 50;
+            const safeMaxY = playableHeight - safeGapSize / 2 - 20;
+            const gapCenter = (safeMinY + safeMaxY) / 2;
+            spawnHand(gapCenter);
+        } else {
+            const gapCenter = Math.floor(Math.random() * (maxGapY - minGapY + 1)) + minGapY;
+            spawnHand(gapCenter);
+        }
+    }
+
+
+    function showFloatText(text) {
+        const div = document.createElement('div');
+        div.className = 'float-text';
+        div.innerText = text;
+        div.style.left = (state.width / 2 - 50) + 'px';
+        div.style.top = (state.height / 3) + 'px';
+        document.getElementById('effects-container').appendChild(div);
+        setTimeout(() => div.remove(), 1000);
+    }
+
+    function gameOver(reason) {
+        state.running = false;
+        
+        // Stop Background Music
+        AudioSys.stopMusic();
+        
+        // scream.mp3 is played on death (now uses the loaded Audio object)
+        AudioSys.playScream();
+        
+        if (reason === 'fire') {
+            document.getElementById('death-msg').innerText = "ROASTED TURD!";
+            document.getElementById('death-msg').style.color = "#FF4500";
+        } else {
+            const msgs = ["SLAPPED!", "FLUSHED!", "SQUISHED!", "HANDLED!"];
+            document.getElementById('death-msg').innerText = msgs[Math.floor(Math.random()*msgs.length)];
+            document.getElementById('death-msg').style.color = "#ddd";
+        }
+
+        canvas.style.transform = `translate(${Math.random()*15-7}px, ${Math.random()*15-7}px)`;
+        setTimeout(() => canvas.style.transform = 'none', 300);
+
+        document.getElementById('final-score').innerText = state.score;
+        document.getElementById('game-over-screen').classList.remove('hidden');
+
+        HighScoreSys.loadScores().then(highScores => {
+            const qualifies = highScores.length < HighScoreSys.MAX_SCORES || state.score > (highScores.length > 0 ? highScores[highScores.length - 1].score : -1);
+            if (qualifies) {
+                const inputName = window.prompt(`NEW HIGH SCORE! Enter name (max 10 chars):`); 
+                HighScoreSys.checkAndSaveScore(inputName || "POO", state.score);
+            } else {
+                HighScoreSys.displayScores(); // Update HUD/Start Screen scores
+            }
+        });
+    }
+
+    function update() {
+        state.frames++;
+        
+        // Physics
+        player.vy += GRAVITY_Y;
+        player.vx += WIND_X;
+        player.vx *= 0.95;
+
+        player.y += player.vy;
+        player.x += player.vx;
+        player.rot = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, (player.vy * 0.1)));
+
+        // Turd's effective hit area constants
+        const pR = player.radius;
+        const pCX = player.x + turdCanvas.width / 2; // Player Center X
+        const pCY = player.y + turdCanvas.height / 2; // Player Center Y
+
+        // 1. Fire Floor Collision
+        const fireLine = state.height - FIRE_HEIGHT;
+        if (player.y + turdCanvas.height >= fireLine) { 
+            gameOver('fire');
+            return;
+        }
+        
+        // 2. Ceiling
+        if (player.y <= 0) { 
+            player.y = 0;
+            player.vy = 0;
+        }
+
+        // 3. Right Wall
+        if (player.x > state.width - turdCanvas.width) {
+            player.x = state.width - turdCanvas.width;
+            player.vx = 0;
+        }
+        
+        // 4. Left Wall Collision (Fixed to prevent going off screen left)
+        if (player.x < 0) {
+            player.x = 0;
+            player.vx = 0;
+        }
+        
+        // 5. Hands Spawning
+        const spawnInterval = Math.floor(1000 / (Math.max(0.1, scrollSpeed) * 3));
+        if (state.frames % spawnInterval === 0) generateNewHandPair();
+
+        // 6. Hands Movement, Collision, and Scoring (REFINED COLLISION)
+        for (let i = hands.length - 1; i >= 0; i--) {
+            let h = hands[i];
+            h.x -= scrollSpeed;
+
+            // --- REFINED CIRCULAR COLLISION CHECK ---
+            const INSET = HAND_HITBOX_INSET; // Use the defined inset (8 pixels)
+
+            // Calculate the tighter bounding box for the hand obstacle
+            const handHitBoxX = h.x + INSET;
+            const handHitBoxW = h.w - INSET * 2;
+            const handHitBoxY = h.y + INSET;
+            const handHitBoxH = h.h - INSET * 2;
+
+            // Find the closest point on the hand's tighter bounding box to the player's center
+            const closestX = Math.max(handHitBoxX, Math.min(pCX, handHitBoxX + handHitBoxW));
+            const closestY = Math.max(handHitBoxY, Math.min(pCY, handHitBoxY + handHitBoxH));
+
+            // Calculate the distance between the closest point and the player's center
+            const distSq = (pCX - closestX) ** 2 + (pCY - closestY) ** 2;
+
+            // Collision occurs if the distance squared is less than the player's radius squared
+            if (distSq < pR ** 2) {
+                gameOver('slap');
+                return;
+            }
+
+            // --- Scoring Check ---
+            // Only check on the top hand of the pair, identified by !h.isBottom
+            if (!h.isBottom && !h.passed) {
+                // Check if the player's center X has passed the hand's rear edge
+                if (pCX > h.x + h.w) { 
+                    const gapSize = Math.max(160, 220 - (state.score * 2));
+                    
+                    if (pCY >= h.gapCenterY - gapSize / 2 && 
+                        pCY <= h.gapCenterY + gapSize / 2) {
+                        
+                        h.passed = true;
+                        // Mark the corresponding bottom hand as passed too to prevent double-scoring
+                        if (i + 1 < hands.length) hands[i + 1].passed = true; 
+
+                        state.score++;
+                        document.getElementById('score-display').innerText = state.score;
+                        
+                        // Play score tone
+                        AudioSys.sfxScore();
+
+                        if(state.score % 5 === 0) {
+                            scrollSpeed += 0.2;
+                            showFloatText("SPEED UP!");
+                        }
+                    } 
+                }
+            }
+            
+            // Clean up off-screen hands
+            if (h.x + h.w < -50) hands.splice(i, 1);
+        }
+    }
+
+    function draw() {
+        // 1. Draw Parallax Background 
+        drawBackground();
+
+        // 2. Draw Hands 
+        hands.forEach(h => {
+            ctx.drawImage(handCanvas, h.x, h.y);
+        });
+
+        // 3. Draw Player
+        ctx.save();
+        ctx.translate(player.x + turdCanvas.width/2, player.y + turdCanvas.height/2);
+        ctx.rotate(player.rot);
+        ctx.drawImage(turdCanvas, -turdCanvas.width/2, -turdCanvas.height/2);
+        ctx.restore();
+
+        // 4. DRAW FIRE (Animated Voxel Style)
+        const fireBase = state.height - FIRE_HEIGHT;
+        const pixelSize = 10;
+        const cols = Math.ceil(state.width / pixelSize);
+        
+        for (let i = 0; i < cols; i++) {
+            const hVar = Math.sin((state.frames * 0.2) + i) * 10 + Math.random() * 10;
+            const x = i * pixelSize;
+            
+            // Outer Flame (Red)
+            ctx.fillStyle = '#FF4500';
+            ctx.fillRect(x, fireBase + hVar, pixelSize, FIRE_HEIGHT);
+            
+            // Inner Flame (Orange)
+            ctx.fillStyle = '#FF8C00';
+            ctx.fillRect(x + 2, fireBase + hVar + 10, pixelSize - 4, FIRE_HEIGHT);
+            
+            // Core (Yellow)
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(x + 3, fireBase + hVar + 25, pixelSize - 6, FIRE_HEIGHT);
+        }
+    }
+
+    function loop() {
+        if (state.running) {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+    }
+
+    function handleInput(e, type) {
+        AudioSys.initAndUnlock(); // Initialize/Unlock audio on first user input
+
+        if (!state.running) return;
+        if (e.type !== 'keydown') e.preventDefault();
+        
+        let moveLeft = false;
+        if (type === 'key') {
+            if (e.code === 'ArrowLeft') moveLeft = true;
+            else if (e.code === 'ArrowRight' || e.code === 'Space') moveLeft = false;
+            else return;
+        } else {
+            const rect = canvas.getBoundingClientRect();
+            let clientX = e.type.startsWith('touch') ? e.changedTouches[0].clientX : e.clientX;
+            if ((clientX - rect.left) < rect.width / 2) moveLeft = true;
+        }
+
+        player.vy = FLAP_Y;
+        player.vx = moveLeft ? -FLAP_X : FLAP_X;
+        
+        // 1. Play the regular flap sound effect (sfxFlap)
+        AudioSys.sfxFlap();
+        
+        // 2. Randomly play the fart sound (5% chance)
+        if (Math.random() < 0.05) {
+            AudioSys.playFart();
+        }
+    }
+
+    // --- UI Logic ---
+    function showStartScreen() {
+        document.getElementById('game-over-screen').classList.add('hidden');
+        document.getElementById('start-screen').classList.remove('hidden');
+        HighScoreSys.displayScores(); // Refresh scores when returning to start screen
+    }
+
+    window.addEventListener('keydown', (e) => handleInput(e, 'key'));
+    const frame = document.getElementById('phone-frame');
+    frame.addEventListener('mousedown', (e) => handleInput(e, 'mouse'));
+    frame.addEventListener('touchstart', (e) => handleInput(e, 'touch'), {passive: false});
+
+    window.addEventListener('resize', resize);
+    document.getElementById('start-btn').addEventListener('click', initGame);
+    document.getElementById('restart-btn').addEventListener('click', initGame);
+    // The View Scores button now calls showStartScreen to view the scores
+    document.getElementById('view-scores-btn').addEventListener('click', showStartScreen);
+
+    HighScoreSys.displayScores();
+    setTimeout(resize, 100);
+
+</script>
+</body>
+</html>
