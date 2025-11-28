@@ -54,12 +54,6 @@
             flex-wrap: wrap; 
         }
         
-        /* Removed .hud-center-top CSS as it's now consolidated into .hud-top */
-
-        .hud-item {
-            padding: 5px 10px;
-        }
-        
         /* Highscore Holder Styling */
         #highscore-holder {
             font-size: 10px;
@@ -111,6 +105,9 @@
             text-align: center;
             color: white;
             z-index: 10;
+            overflow-y: auto; /* IMPORTANT: Allows scrolling for tall content like leaderboards */
+            padding: 20px 0; /* Add padding for scroll room */
+            box-sizing: border-box;
         }
 
         .hidden { display: none !important; }
@@ -134,7 +131,7 @@
             padding: 15px 30px;
             cursor: pointer;
             box-shadow: 0 6px 0 #8b0000;
-            margin: 10px;
+            margin: 10px 10px 20px; /* Increased bottom margin */
             text-transform: uppercase;
             transition: transform 0.1s, box-shadow 0.1s;
         }
@@ -181,6 +178,7 @@
 <body>
 
     <audio id="bgm" loop>
+        <!-- In a real deployment, you would need to host an audio file here -->
         <source src="donnie.mp3" type="audio/mpeg">
     </audio>
 
@@ -220,9 +218,7 @@
             <h1 style="color: #ff5555;">TERRY'S WATER BROKE!</h1>
             <p id="final-score">SCORE: 0</p>
             
-            <p id="top-ten-message" class="hidden" style="color:#00ff00; margin-bottom: 20px; font-size: 14px; max-width: 600px; padding: 0 20px;">
-                A noble attempt! Only the top 10 are recorded.
-            </p>
+            <!-- Removed 'top-ten-message' element entirely as requested -->
 
             <div id="high-score-form" class="hidden">
                 <p>YOU MADE THE TOP 10! ENTER NAME (MAX 10):</p>
@@ -231,11 +227,11 @@
                 <button id="submit-score-btn">SUBMIT</button>
             </div>
             
-            <!-- PLAY AGAIN button moved to appear above the leaderboard container -->
-            <button id="restart-btn" style="margin-top: 20px;">PLAY AGAIN</button>
+            <!-- PLAY AGAIN button placed higher up and margin-top removed for better flow -->
+            <button id="restart-btn">PLAY AGAIN</button>
 
             <div id="leaderboard-container" class="hidden">
-                <p style="color: #00ff00;">TOP 10 SURVIVORS</p>
+                <p style="color: #00ff00; margin-top: 10px;">TOP 10 SURVIVORS</p>
                 <table id="leaderboard-table">
                     <thead><tr><th>NAME</th><th>SCORE</th></tr></thead>
                     <tbody id="leaderboard-body"></tbody>
@@ -246,7 +242,6 @@
 
     <script type="module">
         // --- SUPABASE CONFIGURATION ---
-        // NOTE: If you deploy this, you should replace this placeholder key with your actual Supabase credentials.
         const SUPABASE_URL = 'https://xybyjldasdstkvpagmdk.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_5_B_Oh3Pcr-dppdUoxpGeg_oqRYKlCK';
         const TABLE_NAME = 'Highscores';
@@ -529,11 +524,6 @@
         let screenShake = 0;
         let topScoreHolder = 'NONE'; // State for highscore name
         
-        // --- REMOVED: Double-Tap detection variables ---
-        // let lastTapTime = 0;
-        // const DOUBLE_TAP_TIMEOUT = 300; // milliseconds
-        // -------------------------------------------
-
         function resetGame() {
             player.y = height - GROUND_HEIGHT - player.height;
             player.vy = 0;
@@ -867,7 +857,6 @@
             }
         }
 
-        // MODIFIED: Jump function now accepts any click/tap/space event
         function jump() {
             if (gameState !== STATE.PLAY) return;
 
@@ -890,8 +879,6 @@
             }
         }
         
-        // --- REMOVED: handleTap function ---
-        
         async function die() { // Now async to await database check
             gameState = STATE.DEAD;
             playSound('death');
@@ -906,28 +893,25 @@
             // Check if score is high enough
             const isTopTen = await checkIfTopTen(finalScore);
 
-            // Hide the submission form and message initially
+            // Hide the submission form initially
             document.getElementById('high-score-form').classList.add('hidden');
-            document.getElementById('top-ten-message').classList.add('hidden');
             
             if (isTopTen) {
+                // Show form if player made the top 10
                 document.getElementById('high-score-form').classList.remove('hidden');
                 document.getElementById('player-name').focus();
-            } else {
-                document.getElementById('top-ten-message').innerText = `A noble attempt! Only the top 10 are recorded. Your score: ${finalScore}`;
-                document.getElementById('top-ten-message').classList.remove('hidden');
-            }
-            
+            } 
+            // Removed the else block that displayed the "noble attempt" message.
+
             // Show the PLAY AGAIN button
             document.getElementById('restart-btn').classList.remove('hidden');
 
             // Show game over screen
             document.getElementById('game-over-screen').classList.remove('hidden');
             
-            // --- FIX: Ensure leaderboard is fetched and displayed ---
+            // Refresh and display the leaderboard 
             await refreshLeaderboard(false); 
             document.getElementById('leaderboard-container').classList.remove('hidden');
-            // --------------------------------------------------------
         }
         
         /**
@@ -972,10 +956,9 @@
         document.getElementById('start-btn').addEventListener('click', startGame);
         document.getElementById('restart-btn').addEventListener('click', startGame);
         
-        // MODIFIED: Primary jump controls (click) now call jump() directly
+        // Primary jump controls (click/tap)
         canvas.addEventListener('mousedown', jump); 
         
-        // MODIFIED: Touch events now call jump() directly
         canvas.addEventListener('touchstart', (e) => {
             // Prevent default touch behavior (like scrolling/pull-to-refresh)
             e.preventDefault(); 
@@ -985,29 +968,23 @@
             }
         });
 
-        // --- EXISTING FEATURE: Space Bar Jump for PC ---
+        // Space Bar Jump for PC
         window.addEventListener('keydown', (e) => {
-            // Spacebar press
             if (gameState === STATE.PLAY && (e.key === ' ' || e.keyCode === 32) && !e.repeat) {
                 e.preventDefault(); 
-                jump(); // Jump function handles single or double jump based on state
+                jump(); 
             }
         });
-        // -------------------------------------------
         
         document.getElementById('submit-score-btn').addEventListener('click', async () => {
             const nameInput = document.getElementById('player-name');
             const name = nameInput.value.trim() || 'NONAME';
             
             // Save the score
-            const success = await saveScore(name, Math.floor(score));
+            await saveScore(name, Math.floor(score));
 
-            // Hide the form regardless of success
+            // Hide the form 
             document.getElementById('high-score-form').classList.add('hidden');
-            document.getElementById('top-ten-message').innerText = success 
-                ? "SCORE SUBMITTED! CHECK THE BOARD." 
-                : "ERROR SUBMITTING SCORE. TRY AGAIN.";
-            document.getElementById('top-ten-message').classList.remove('hidden');
             
             // Refresh the displayed leaderboard to include the new score
             await refreshLeaderboard(false); 
