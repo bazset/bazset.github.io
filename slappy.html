@@ -331,7 +331,6 @@
             
             // Function to generate score list HTML
             const generateHtml = (scores) => {
-                // REPLACED 醇 with standard emoji
                 let html = `<strong>🏆 GLOBAL TOP 10</strong><ol>`;
                 if (scores.length === 0) html += '<li>No scores yet.</li>';
                 else scores.forEach((s, index) => html += `<li><span>${(index + 1)}. ${s.name}</span><span>${s.score}</span></li>`);
@@ -426,7 +425,7 @@
         isInitialized: false,
         
         // --- AUDIO FILE OBJECTS ---
-        // New: Load the requested audio files.
+        // New: Load the requested audio files from the same directory.
         sfxFart: new Audio('fart.mp3'),
         sfxScream: new Audio('scream.mp3'),
         bgMusic: new Audio('hugh.mp3'),
